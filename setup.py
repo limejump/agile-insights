@@ -9,6 +9,7 @@ setuptools.setup(
         "A script for fetching kanban board data pertinent to forecasting"),
     packages=setuptools.find_packages(),
     install_requires=[
-        'requests'
+        'requests',
+        'arrow'
     ],
 )
