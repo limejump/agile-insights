@@ -1,12 +1,12 @@
-import arrow
+from __future__ import annotations
 import click
+from click.types import DateTime
 from datetime import datetime
 from dataclasses import dataclass, field
 import json
-from click.types import DateTime
 from requests import get
 from requests.auth import HTTPBasicAuth
-from typing import NamedTuple, List
+from typing import NamedTuple, List, Optional
 
 MY_TOKEN = 'eVDgTL8kVgdXFaiJtbCF4001'
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
@@ -45,7 +45,7 @@ class IssueMetrics:
         # FIXME:
         # Some tickets have no status history and move straight done.
         # We default such cases to 1 day of work.
-        # this is a terrible approach to capture this, but will do for now.
+        # This is a terrible approach to capture this, but will do for now.
         # really we should parse the status history up front and not create
         # an IssueMetrics record if we ar unable to determine a duration
         try:
@@ -83,6 +83,10 @@ class IssueMetrics:
     def _round_seconds(seconds):
         return seconds if seconds == 0 else 1
 
+    @classmethod
+    def from_json(cls, issue_json):
+        pass
+
     def to_json(self):
         return {
             'name': self.name,
@@ -91,6 +95,26 @@ class IssueMetrics:
             'resolution_date': datetime.strftime(
                 self.resolution_date, DUMPFORMAT)
         }
+
+
+@dataclass
+class JiraIssue:
+    name: str
+    type_: int
+    has_subtasks: bool
+    metrics: Optional[IssueMetrics] = None
+
+    @classmethod
+    def from_json(cls, issue_json: dict) -> JiraIssue:
+        return cls(
+            name=issue_json['key'],
+            type_=int(issue_json['fields']['issuetype']['id']),
+            has_subtasks=bool(issue_json['fields']['subtasks']))
+
+
+def measurable_issue(issue: JiraIssue) -> bool:
+    return (issue.type_ == ISSUE_TYPES.subtask or
+            (issue.type_ == ISSUE_TYPES.story and not issue.has_subtasks))
 
 
 def fetch(start_at):
@@ -110,28 +134,26 @@ def extract():
     data = []
 
     def extract_batch(issues):
-        for issue in issues['issues']:
-            if (
-                    int(issue['fields']['status']['id']) == STATUS_TYPES.done and
-                    int(issue['fields']['issuetype']['id']) in ISSUE_TYPES):
-                if not issue['fields']['subtasks']:
-                    histories = issue['changelog']['histories']
-                    status_changes = []
-                    for h in histories:
-                        s = {'timestamp': h['created']}
-                        for i in h['items']:
-                            if 'fieldId' in i and i['fieldId'] == 'status':
-                                s['from'] = int(i['from'])
-                                s['to'] = int(i['to'])
-                                status_changes.append(s)
-                    data.append(
-                        IssueMetrics(
-                            name=issue['key'],
-                            storypoints=issue['fields']['customfield_11638'],
-                            resolution_date=datetime.strptime(
-                                issue['fields']['resolutiondate'],
-                                TIMEFORMAT),
-                            status_history=status_changes))
+        for i in issues['issues']:
+            issue = JiraIssue.from_json(i)
+            if measurable_issue(issue):
+                histories = i['changelog']['histories']
+                status_changes = []
+                for h in histories:
+                    s = {'timestamp': h['created']}
+                    for i in h['items']:
+                        if 'fieldId' in i and i['fieldId'] == 'status':
+                            s['from'] = int(i['from'])
+                            s['to'] = int(i['to'])
+                            status_changes.append(s)
+                data.append(
+                    IssueMetrics(
+                        name=issue['key'],
+                        storypoints=issue['fields']['customfield_11638'],
+                        resolution_date=datetime.strptime(
+                            issue['fields']['resolutiondate'],
+                            TIMEFORMAT),
+                        status_history=status_changes))
 
     processed = 0
     first_batch = fetch(processed)
@@ -154,7 +176,7 @@ def dump():
 
 
 @dump.command()
-def all():
+def full():
     try:
         with open(FULL_DATASET_FILEPATH, 'r'):
             pass
@@ -176,24 +198,24 @@ def range(start, end):
         raise click.ClickException("please run `extract`")
     if start and end:
         with open(f'jira-dataset-from-{start}-to-{end}.json', 'w') as f:
-            json.dump([
+            json.dump(
                 [d for d in data
-                 if start <= datetime.strptime(d['resolution_date'], DUMPFORMAT) <= end]
-            ], f, indent=2)
+                 if start <= datetime.strptime(d['resolution_date'], DUMPFORMAT) <= end],
+                f, indent=2)
         click.echo(f'file dumped at: ./jira-dataset-from-{start}-to-{end}.json')
     elif start:
         with open(f'jira-dataset-from-{start}.json', 'w') as f:
-            json.dump([
+            json.dump(
                 [d for d in data
-                 if start <= datetime.strptime(d['resolution_date'], DUMPFORMAT)]
-            ], f, indent=2)
+                 if start <= datetime.strptime(d['resolution_date'], DUMPFORMAT)],
+                f, indent=2)
         click.echo(f'file dumped at: ./jira-dataset-from-{start}.json')
     elif end:
         with open(f'jira-dataset-to-{end}.json', 'w') as f:
-            json.dump([
+            json.dump(
                 [d for d in data
-                 if datetime.strptime(d['resolution_date'], DUMPFORMAT) <= end]
-            ], f, indent=2)
+                 if datetime.strptime(d['resolution_date'], DUMPFORMAT) <= end],
+                f, indent=2)
         click.echo(f'file dumped at: ./jira-dataset-to-{end}.json')
     else:
         click.echo(f'file dumped at: ./{FULL_DATASET_FILEPATH}')
