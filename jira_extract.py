@@ -134,8 +134,10 @@ class JiraIssue:
 
 
 def measurable_issue(issue: JiraIssue) -> bool:
-    return (issue.type_ == ISSUE_TYPES.subtask or
-            (issue.type_ == ISSUE_TYPES.story and not issue.has_subtasks))
+    return (
+        (issue.type_ == ISSUE_TYPES.subtask or
+         (issue.type_ == ISSUE_TYPES.story and not issue.has_subtasks)) and
+        issue.status == STATUS_TYPES.done)
 
 
 def fetch(start_at):
