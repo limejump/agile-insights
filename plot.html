@@ -13,7 +13,7 @@
         d3.json("http://localhost:8888/jira-dataset-from-2020-03-15 00:00:00.json")
         .then((data) => {
             // console.log(data);
-            let story_point_time = data[0].map((value) => {
+            let story_point_time = data.map((value) => {
                 return [value["days_taken"], value["storypoints"]]
             });
 
