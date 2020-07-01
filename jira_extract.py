@@ -32,7 +32,6 @@ STATUS_TYPES = StatusTypes(
 
 @dataclass
 class IssueMetrics:
-    name: str
     storypoints: float
     resolution_date: datetime
     status_history: List[dict]
@@ -85,11 +84,24 @@ class IssueMetrics:
 
     @classmethod
     def from_json(cls, issue_json):
-        pass
+        histories = issue_json['changelog']['histories']
+        status_changes = []
+        for h in histories:
+            s = {'timestamp': h['created']}
+            for i in h['items']:
+                if 'fieldId' in i and i['fieldId'] == 'status':
+                    s['from'] = int(i['from'])
+                    s['to'] = int(i['to'])
+                    status_changes.append(s)
+        return cls(
+            storypoints=issue_json['fields']['customfield_11638'],
+            resolution_date=datetime.strptime(
+                issue_json['fields']['resolutiondate'],
+                TIMEFORMAT),
+            status_history=status_changes)
 
     def to_json(self):
         return {
-            'name': self.name,
             'storypoints': self.storypoints,
             'days_taken': self.days_taken,
             'resolution_date': datetime.strftime(
@@ -101,6 +113,7 @@ class IssueMetrics:
 class JiraIssue:
     name: str
     type_: int
+    status: int
     has_subtasks: bool
     metrics: Optional[IssueMetrics] = None
 
@@ -109,7 +122,15 @@ class JiraIssue:
         return cls(
             name=issue_json['key'],
             type_=int(issue_json['fields']['issuetype']['id']),
+            status=int(issue_json['fields']['status']['id']),
             has_subtasks=bool(issue_json['fields']['subtasks']))
+
+    def to_json(self):
+        return {
+            "name": self.name,
+            "status": self.status,
+            "metrices": self.metrics.to_json()
+        }
 
 
 def measurable_issue(issue: JiraIssue) -> bool:
@@ -134,26 +155,11 @@ def extract():
     data = []
 
     def extract_batch(issues):
-        for i in issues['issues']:
-            issue = JiraIssue.from_json(i)
+        for issue_json in issues['issues']:
+            issue = JiraIssue.from_json(issue_json)
             if measurable_issue(issue):
-                histories = i['changelog']['histories']
-                status_changes = []
-                for h in histories:
-                    s = {'timestamp': h['created']}
-                    for i in h['items']:
-                        if 'fieldId' in i and i['fieldId'] == 'status':
-                            s['from'] = int(i['from'])
-                            s['to'] = int(i['to'])
-                            status_changes.append(s)
-                data.append(
-                    IssueMetrics(
-                        name=issue['key'],
-                        storypoints=issue['fields']['customfield_11638'],
-                        resolution_date=datetime.strptime(
-                            issue['fields']['resolutiondate'],
-                            TIMEFORMAT),
-                        status_history=status_changes))
+                issue.metrics = IssueMetrics.from_json(issue_json)
+                data.append(issue)
 
     processed = 0
     first_batch = fetch(processed)
