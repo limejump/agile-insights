@@ -1,19 +1,14 @@
 from __future__ import annotations
-import click
-from click.types import DateTime
-from datetime import datetime
+
 from dataclasses import dataclass, field
-import json
-from requests import get
-from requests.auth import HTTPBasicAuth
+from datetime import datetime
 from typing import NamedTuple, List, Optional
 
-MY_TOKEN = 'eVDgTL8kVgdXFaiJtbCF4001'
+
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
 TRADING_BOARD = 140
 TIMEFORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
-FULL_DATASET_FILEPATH = 'full-jira-dataset.json'
 
 IssueTypes = NamedTuple("IssueTypes", [("story", int), ("subtask", int)])
 ISSUE_TYPES = IssueTypes(story=10350, subtask=10354)
@@ -129,105 +124,5 @@ class JiraIssue:
         return {
             "name": self.name,
             "status": self.status,
-            "metrices": self.metrics.to_json()
+            "metrics": self.metrics.to_json()
         }
-
-
-def measurable_issue(issue: JiraIssue) -> bool:
-    return (
-        (issue.type_ == ISSUE_TYPES.subtask or
-         (issue.type_ == ISSUE_TYPES.story and not issue.has_subtasks)) and
-        issue.status == STATUS_TYPES.done)
-
-
-def fetch(start_at):
-    return get(
-        JIRA_BASEURL + (
-            f'/1.0/board/{TRADING_BOARD}/issue/?expand=changelog&maxResults=50&startAt={start_at}'),
-        auth=HTTPBasicAuth("grahame.gardiner@limejump.com", MY_TOKEN)).json()
-
-
-@click.group()
-def cli():
-    pass
-
-
-@cli.command()
-def extract():
-    data = []
-
-    def extract_batch(issues):
-        for issue_json in issues['issues']:
-            issue = JiraIssue.from_json(issue_json)
-            if measurable_issue(issue):
-                issue.metrics = IssueMetrics.from_json(issue_json)
-                data.append(issue)
-
-    processed = 0
-    first_batch = fetch(processed)
-    total = first_batch['total']
-    extract_batch(first_batch)
-    processed += len(first_batch['issues'])
-
-    while processed < total:
-        batch = fetch(processed)
-        extract_batch(batch)
-        processed += len(first_batch['issues'])
-
-    with open(FULL_DATASET_FILEPATH, 'w') as f:
-        json.dump([d.to_json() for d in data], f, indent=2)
-
-
-@cli.group()
-def dump():
-    pass
-
-
-@dump.command()
-def full():
-    try:
-        with open(FULL_DATASET_FILEPATH, 'r'):
-            pass
-    except FileNotFoundError:
-        raise click.ClickException("please run `extract`")
-    else:
-        click.echo(f'file dumped at: ./{FULL_DATASET_FILEPATH}')
-
-
-@dump.command(help="If neither --start or --end is specified return all")
-@click.option('--start', type=DateTime())
-@click.option('--end', type=DateTime())
-def range(start, end):
-    # FIXME: Repitition
-    try:
-        with open(FULL_DATASET_FILEPATH, 'r') as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        raise click.ClickException("please run `extract`")
-    if start and end:
-        with open(f'jira-dataset-from-{start}-to-{end}.json', 'w') as f:
-            json.dump(
-                [d for d in data
-                 if start <= datetime.strptime(d['resolution_date'], DUMPFORMAT) <= end],
-                f, indent=2)
-        click.echo(f'file dumped at: ./jira-dataset-from-{start}-to-{end}.json')
-    elif start:
-        with open(f'jira-dataset-from-{start}.json', 'w') as f:
-            json.dump(
-                [d for d in data
-                 if start <= datetime.strptime(d['resolution_date'], DUMPFORMAT)],
-                f, indent=2)
-        click.echo(f'file dumped at: ./jira-dataset-from-{start}.json')
-    elif end:
-        with open(f'jira-dataset-to-{end}.json', 'w') as f:
-            json.dump(
-                [d for d in data
-                 if datetime.strptime(d['resolution_date'], DUMPFORMAT) <= end],
-                f, indent=2)
-        click.echo(f'file dumped at: ./jira-dataset-to-{end}.json')
-    else:
-        click.echo(f'file dumped at: ./{FULL_DATASET_FILEPATH}')
-
-
-if __name__ == '__main__':
-    cli()
