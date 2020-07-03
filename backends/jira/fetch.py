@@ -3,7 +3,7 @@ from requests.auth import HTTPBasicAuth
 from typing import List
 
 from .types import (
-    JiraIssue, IssueMetrics,
+    JiraIssue, IssueMetrics, Sprint,
     ISSUE_TYPES, STATUS_TYPES
 )
 
@@ -74,8 +74,47 @@ def fetch_all_issues() -> List[JiraIssue]:
     return pager.fetch_all()
 
 
+# TODO: Base Class
+class CheckLastPager:
+    auth = HTTPBasicAuth("grahame.gardiner@limejump.com", MY_TOKEN)
+
+    def __init__(self, url, items_key, data_constructor):
+        self.url = url
+        self.items_key = items_key
+        self.data_constructor = data_constructor
+
+    def fetch_batch(self, start_at):
+        return requests.get(
+            self.url + f"&startAt={start_at}", auth=self.auth).json()
+
+    def fetch_all(self):
+        data = []
+
+        def extract_batch(batch_json):
+            for item_json in batch_json[self.items_key]:
+                item = self.data_constructor(item_json)
+                if item is not None:
+                    data.append(item)
+
+        processed = 0
+        first_batch = self.fetch_batch(processed)
+        final = first_batch['isLast']
+        extract_batch(first_batch)
+        processed += len(first_batch)
+
+        while not final:
+            batch = self.fetch_batch(processed)
+            extract_batch(batch)
+            final = batch['isLast']
+            processed += len(batch)
+
+        return data
+
+
 def fetch_sprints(start_at):
-    requests.get(
-        JIRA_BASEURL + (
-            f'/1.0/board/{TRADING_BOARD}/sprint'),
-        auth=HTTPBasicAuth("grahame.gardiner@limejump.com", MY_TOKEN)).json()
+    pager = CheckLastPager(
+        url=JIRA_BASEURL + (
+            f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=50'),
+        items_key='values',
+        data_constructor=Sprint.from_json)
+    return pager.fetch_all()

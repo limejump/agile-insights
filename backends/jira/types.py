@@ -126,3 +126,20 @@ class JiraIssue:
             "status": self.status,
             "metrics": self.metrics.to_json()
         }
+
+
+@dataclass
+class Sprint:
+    name: str
+    state: str
+    start: datetime
+    end: datetime
+    issues: List[JiraIssue] = field(init=False)
+
+    @classmethod
+    def from_json(cls, sprint_json: dict) -> Sprint:
+        return cls(
+            name=sprint_json['name'],
+            state=sprint_json['state'],
+            start=sprint_json['startDate'],
+            end=sprint_json.get('completeDate') or sprint_json['endDate'])

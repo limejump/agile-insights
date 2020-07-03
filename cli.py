@@ -6,7 +6,7 @@ from os.path import abspath, join, dirname
 
 from backends.jira import (
     ALL_ISSUES_FILENAME, DUMPFORMAT,
-    fetch_all_issues)
+    fetch_all_issues, fetch_sprints)
 
 
 here = abspath(dirname(__file__))
@@ -18,12 +18,22 @@ def cli():
     pass
 
 
-@cli.command()
+@cli.group()
 def extract():
+    pass
+
+
+@extract.command()
+def issues():
     data = fetch_all_issues()
-    print(here, data_dir)
     with open(join(data_dir, ALL_ISSUES_FILENAME), 'w') as f:
         json.dump([d.to_json() for d in data], f, indent=2)
+
+
+@extract.command()
+def sprints():
+    data = fetch_sprints(None)
+    print(data)
 
 
 @cli.group()
