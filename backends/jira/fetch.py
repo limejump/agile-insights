@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List
@@ -14,7 +15,7 @@ DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
 ALL_ISSUES_FILENAME = 'jira-all-issues.json'
 
 
-class CheckTotalPager:
+class JiraPager(ABC):
     auth = HTTPBasicAuth("grahame.gardiner@limejump.com", MY_TOKEN)
 
     def __init__(self, url, items_key, data_constructor):
@@ -27,6 +28,12 @@ class CheckTotalPager:
         return requests.get(
             self.url + f"&startAt={start_at}", auth=self.auth).json()
 
+    @abstractmethod
+    def fetch_all(self):
+        pass
+
+
+class CheckTotalPager(JiraPager):
     def fetch_all(self):
         data = []
 
@@ -50,43 +57,7 @@ class CheckTotalPager:
         return data
 
 
-def measurable_issue(issue: JiraIssue) -> bool:
-    return (
-        (issue.type_ == ISSUE_TYPES.subtask or
-         (issue.type_ == ISSUE_TYPES.story and not issue.has_subtasks)) and
-        issue.status == STATUS_TYPES.done)
-
-
-def create_issue(issue_json):
-    issue = JiraIssue.from_json(issue_json)
-    if measurable_issue(issue):
-        issue.metrics = IssueMetrics.from_json(issue_json)
-        return issue
-
-
-def fetch_all_issues() -> List[JiraIssue]:
-    pager = CheckTotalPager(
-        url=(
-            JIRA_BASEURL +
-            f'/1.0/board/{TRADING_BOARD}/issue/?expand=changelog&maxResults=50'),
-        items_key='issues',
-        data_constructor=create_issue)
-    return pager.fetch_all()
-
-
-# TODO: Base Class
-class CheckLastPager:
-    auth = HTTPBasicAuth("grahame.gardiner@limejump.com", MY_TOKEN)
-
-    def __init__(self, url, items_key, data_constructor):
-        self.url = url
-        self.items_key = items_key
-        self.data_constructor = data_constructor
-
-    def fetch_batch(self, start_at):
-        return requests.get(
-            self.url + f"&startAt={start_at}", auth=self.auth).json()
-
+class CheckLastPager(JiraPager):
     def fetch_all(self):
         data = []
 
@@ -111,7 +82,31 @@ class CheckLastPager:
         return data
 
 
-def fetch_sprints(start_at):
+def measurable_issue(issue: JiraIssue) -> bool:
+    return (
+        (issue.type_ == ISSUE_TYPES.subtask or
+         (issue.type_ == ISSUE_TYPES.story and not issue.subtasks)) and
+        issue.status == STATUS_TYPES.done)
+
+
+def create_issue(issue_json):
+    issue = JiraIssue.from_json(issue_json)
+    if measurable_issue(issue):
+        issue.metrics = IssueMetrics.from_json(issue_json)
+        return issue
+
+
+def fetch_all_issues() -> List[JiraIssue]:
+    pager = CheckTotalPager(
+        url=(
+            JIRA_BASEURL +
+            f'/1.0/board/{TRADING_BOARD}/issue/?expand=changelog&maxResults=50'),
+        items_key='issues',
+        data_constructor=create_issue)
+    return pager.fetch_all()
+
+
+def fetch_sprints() -> List[Sprint]:
     pager = CheckLastPager(
         url=JIRA_BASEURL + (
             f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=50'),
