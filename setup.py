@@ -11,6 +11,8 @@ setuptools.setup(
     install_requires=[
         'arrow',
         'click',
+        'dash',
         'requests',
+        'pandas'
     ],
 )
