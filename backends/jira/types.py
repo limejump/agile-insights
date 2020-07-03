@@ -109,7 +109,7 @@ class JiraIssue:
     name: str
     type_: int
     status: int
-    has_subtasks: bool
+    subtasks: Optional[List[JiraIssue]] = None
     metrics: Optional[IssueMetrics] = None
 
     @classmethod
@@ -117,8 +117,7 @@ class JiraIssue:
         return cls(
             name=issue_json['key'],
             type_=int(issue_json['fields']['issuetype']['id']),
-            status=int(issue_json['fields']['status']['id']),
-            has_subtasks=bool(issue_json['fields']['subtasks']))
+            status=int(issue_json['fields']['status']['id']))
 
     def to_json(self):
         return {
