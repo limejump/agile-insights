@@ -110,9 +110,9 @@ class CheckLastPager(JiraPager):
 
 
 def measurable_issue(issue: JiraIssue) -> bool:
-    stand_alone_issue = (
-        issue.type_ != ISSUE_TYPES.subtask and not issue.subtasks)
-    return stand_alone_issue or (issue.type_ == ISSUE_TYPES.subtask)
+    stand_alone_issue = not issue.subtasks
+    epic = issue.type_ == ISSUE_TYPES.epic
+    return stand_alone_issue and not epic
 
 
 def issues_with_full_metrics(issue_json: dict) -> Optional[JiraIssue]:
