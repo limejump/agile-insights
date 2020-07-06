@@ -1,3 +1,4 @@
+from backends.jira.fetch import get_latest_completed_sprint
 import click
 from click.types import DateTime
 from datetime import datetime
@@ -30,9 +31,14 @@ def issues():
         json.dump([d.to_json() for d in data], f, indent=2)
 
 
-@extract.command()
+@extract.group()
 def sprints():
-    data = fetch_sprints(None)
+    pass
+
+
+@sprints.command()
+def latest():
+    data = fetch_sprints()
     print(data)
 
 

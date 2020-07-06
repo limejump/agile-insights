@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import requests
 from requests.auth import HTTPBasicAuth
-from typing import List
+from typing import List, Optional
 
 from .types import (
     JiraIssue, IssueMetrics, Sprint,
@@ -57,6 +57,31 @@ class CheckTotalPager(JiraPager):
         return data
 
 
+class CheckTotalPagerWithSubRequests(JiraPager):
+    def fetch_all(self):
+        data = []
+
+        def extract_batch(batch_json):
+            for item_json in batch_json[self.items_key]:
+                items = self.data_constructor(item_json)
+                if items is not None:
+                    for i in items:
+                        data.append(i)
+
+        processed = 0
+        first_batch = self.fetch_batch(processed)
+        total = first_batch['total']
+        extract_batch(first_batch)
+        processed += len(first_batch[self.items_key])
+
+        while processed < total:
+            batch = self.fetch_batch(processed)
+            extract_batch(batch)
+            processed += len(batch[self.items_key])
+
+        return data
+
+
 class CheckLastPager(JiraPager):
     def fetch_all(self):
         data = []
@@ -85,7 +110,7 @@ class CheckLastPager(JiraPager):
 def measurable_issue(issue: JiraIssue) -> bool:
     return (
         (issue.type_ == ISSUE_TYPES.subtask or
-         (issue.type_ == ISSUE_TYPES.story and not issue.subtasks)))
+         (issue.type_ == ISSUE_TYPES.story and not issue.has_subtasks)))
 
 
 def create_issue_if_done(issue_json: dict) -> Optional[JiraIssue]:
@@ -94,6 +119,27 @@ def create_issue_if_done(issue_json: dict) -> Optional[JiraIssue]:
         if issue.status == STATUS_TYPES.done:
             issue.metrics = IssueMetrics.from_json(issue_json)
             return issue
+
+
+def create_sprint_issues(issue_json) -> Optional[List[JiraIssue]]:
+    issue = JiraIssue.from_json(issue_json)
+    if measurable_issue(issue):
+        return [issue]
+    else:
+        if issue_json['fields']['subtasks']:
+            subtasks = []
+            for subtask_ref in issue_json['fields']['subtasks']:
+                subtask_json = requests.get(
+                    subtask_ref['self'] + '?expand=changelog',
+                    auth=HTTPBasicAuth(
+                        "grahame.gardiner@limejump.com", MY_TOKEN)).json()
+                subtask = JiraIssue.from_json(subtask_json)
+                if issue.status == STATUS_TYPES.done:
+                    subtask.metrics = IssueMetrics.from_json(subtask_json)
+                subtasks.append(subtask)
+            return subtasks
+
+
 def fetch_all_completed_issues() -> List[JiraIssue]:
     pager = CheckTotalPager(
         url=(
@@ -110,4 +156,22 @@ def fetch_sprints() -> List[Sprint]:
             f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=50'),
         items_key='values',
         data_constructor=Sprint.from_json)
+    latest = get_latest_completed_sprint(pager.fetch_all())
+    return fetch_sprint_issues(latest.id_)
+
+
+def fetch_sprint_issues(sprint_id):
+    pager = CheckTotalPagerWithSubRequests(
+        url=JIRA_BASEURL + (
+            f'/1.0/board/{TRADING_BOARD}/sprint/{sprint_id}/issue?maxResults=50&expand=changelog'),
+        items_key='issues',
+        data_constructor=create_sprint_issues)
     return pager.fetch_all()
+
+
+def get_latest_completed_sprint(sprints: List[Sprint]) -> Optional[Sprint]:
+    # FIXME: What about new teams tha that haven't completed a sprint??
+    while sprint := sprints.pop():
+        if sprint.state == 'closed':
+            break
+    return sprint

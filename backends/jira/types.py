@@ -31,6 +31,7 @@ class IssueMetrics:
     resolution_date: datetime
     status_history: List[dict]
     days_taken: int = field(init=False)
+    sprint_history: List[dict]
 
     def __post_init__(self):
         status_history = self._parse_status_history()
@@ -81,19 +82,31 @@ class IssueMetrics:
     def from_json(cls, issue_json):
         histories = issue_json['changelog']['histories']
         status_changes = []
+        sprint_changes = []
         for h in histories:
-            s = {'timestamp': h['created']}
+            st = {'timestamp': h['created']}
+            sp = {'timestamp': h['created']}
             for i in h['items']:
                 if 'fieldId' in i and i['fieldId'] == 'status':
-                    s['from'] = int(i['from'])
-                    s['to'] = int(i['to'])
-                    status_changes.append(s)
+                    st['from'] = int(i['from'])
+                    st['to'] = int(i['to'])
+                    status_changes.append(st)
+                if 'field' in i and i['field'] == 'Sprint':
+                    sprint_added = (
+                        set(i['to'].split(', ')) - set(i['from'].split(', ')))
+                    if sprint_added:
+                        sprint_id = sprint_added.pop()
+                        if sprint_id:
+                            sp['sprint_id'] = int(sprint_id)
+                            sp['operation'] = 'add'
+                    sprint_changes.append(sp)
         return cls(
             storypoints=issue_json['fields']['customfield_11638'],
             resolution_date=datetime.strptime(
                 issue_json['fields']['resolutiondate'],
                 TIMEFORMAT),
-            status_history=status_changes)
+            status_history=status_changes,
+            sprint_history=sprint_changes)
 
     def to_json(self):
         return {
@@ -109,26 +122,41 @@ class JiraIssue:
     name: str
     type_: int
     status: int
-    subtasks: Optional[List[JiraIssue]] = None
+    has_subtasks: bool
+    parent_name: Optional[str]
     metrics: Optional[IssueMetrics] = None
 
     @classmethod
     def from_json(cls, issue_json: dict) -> JiraIssue:
+        parent_name_record = issue_json['fields'].get('parent')
+        if parent_name_record is not None:
+            parent_name = parent_name_record['fields']['summary']
+        else:
+            parent_name = None
         return cls(
             name=issue_json['key'],
+            parent_name=parent_name,
             type_=int(issue_json['fields']['issuetype']['id']),
+            has_subtasks=bool(issue_json['fields']['subtasks']),
             status=int(issue_json['fields']['status']['id']))
 
     def to_json(self):
+        metrics = self.metrics.to_json() if self.metrics else None
         return {
+            "type": self.type_,
             "name": self.name,
             "status": self.status,
-            "metrics": self.metrics.to_json()
+            "metrics": metrics
         }
+
+    @property
+    def label(self):
+        self.parent_name or "No Label"
 
 
 @dataclass
 class Sprint:
+    id_: int
     name: str
     state: str
     start: datetime
@@ -138,6 +166,7 @@ class Sprint:
     @classmethod
     def from_json(cls, sprint_json: dict) -> Sprint:
         return cls(
+            id_=sprint_json['id'],
             name=sprint_json['name'],
             state=sprint_json['state'],
             start=sprint_json['startDate'],
