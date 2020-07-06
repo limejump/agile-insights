@@ -85,24 +85,22 @@ class CheckLastPager(JiraPager):
 def measurable_issue(issue: JiraIssue) -> bool:
     return (
         (issue.type_ == ISSUE_TYPES.subtask or
-         (issue.type_ == ISSUE_TYPES.story and not issue.subtasks)) and
-        issue.status == STATUS_TYPES.done)
+         (issue.type_ == ISSUE_TYPES.story and not issue.subtasks)))
 
 
-def create_issue(issue_json):
+def create_issue_if_done(issue_json: dict) -> Optional[JiraIssue]:
     issue = JiraIssue.from_json(issue_json)
     if measurable_issue(issue):
-        issue.metrics = IssueMetrics.from_json(issue_json)
-        return issue
-
-
-def fetch_all_issues() -> List[JiraIssue]:
+        if issue.status == STATUS_TYPES.done:
+            issue.metrics = IssueMetrics.from_json(issue_json)
+            return issue
+def fetch_all_completed_issues() -> List[JiraIssue]:
     pager = CheckTotalPager(
         url=(
             JIRA_BASEURL +
             f'/1.0/board/{TRADING_BOARD}/issue/?expand=changelog&maxResults=50'),
         items_key='issues',
-        data_constructor=create_issue)
+        data_constructor=create_issue_if_done)
     return pager.fetch_all()
 
 
