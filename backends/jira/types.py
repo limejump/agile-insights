@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
+from itertools import chain
+from os import name
+import re
 from typing import Callable, NamedTuple, List, Optional, Tuple
 from re import findall
 
@@ -37,6 +40,18 @@ StatusTypes = NamedTuple(
 STATUS_TYPES = StatusTypes(
     todo=11490, inprogress=11491, done=11492, codereview=11493)
 STATUS_NAMES = {v: k for k, v in STATUS_TYPES._asdict().items()}
+
+
+def formatted_time_or_none(time):
+    if time is not None:
+        time = datetime.strftime(time, TIMEFORMAT)
+    return time
+
+
+def parsed_time_or_none(time):
+    if time is not None:
+        time = datetime.strptime(time, TIMEFORMAT)
+    return time
 
 
 class IntermediateParser:
@@ -129,7 +144,8 @@ class SprintMetrics:
     sprint_additions: List[dict]
 
     @classmethod
-    def from_parsed_json(cls, sprint_history_json: List[dict]) -> SprintMetrics:
+    def from_parsed_json(
+            cls, sprint_history_json: List[dict]) -> SprintMetrics:
         sprint_additions = []
         for sprint_changes in sprint_history_json:
             sprint_added = sprint_changes['to'] - sprint_changes['from']
@@ -155,7 +171,8 @@ class JiraIssue:
 
     @classmethod
     def from_parsed_json(
-            cls, intermediate: dict, subtask_fetcher=None) -> JiraIssue:
+            cls, intermediate: dict,
+            subtask_fetcher: Callable = None) -> JiraIssue:
         if subtask_fetcher:
             subtasks = cls.fetch_subtasks(
                 subtask_fetcher, intermediate['subtasks'])
@@ -175,6 +192,7 @@ class JiraIssue:
         if issue.subtasks:
             for subtask in issue.subtasks:
                 subtask.parent_issue = issue
+                subtask.sprint_metrics = issue.sprint_metrics
         return issue
 
     @staticmethod
@@ -189,8 +207,7 @@ class JiraIssue:
 
     def to_json(self) -> List[dict]:
         if self.subtasks:
-            return [
-                subt.to_json() for subt in self.subtasks]
+            return list(chain(*[subt.to_json() for subt in self.subtasks]))
         return [{
             "type": TYPE_NAMES[self.type_],
             "name": self.name,
@@ -198,6 +215,8 @@ class JiraIssue:
             "story_points": self.story_points,
             "started": self.status_metrics.started,
             "finished": self.status_metrics.finished,
+            "start_time": formatted_time_or_none(self.status_metrics.start),
+            "end_time": formatted_time_or_none(self.status_metrics.end),
             "days_taken": self.status_metrics.days_taken,
             "label": self.label
         }]
@@ -218,13 +237,51 @@ class Sprint:
     state: str
     start: datetime
     end: datetime
-    issues: List[JiraIssue] = field(init=False)
+    issues: Optional[List[JiraIssue]] = None
 
     @classmethod
-    def from_json(cls, sprint_json: dict) -> Sprint:
-        return cls(
+    def from_parsed_json(
+            cls, sprint_json: dict, issues_fetcher: Callable = None) -> Sprint:
+        sprint = cls(
             id_=sprint_json['id'],
             name=sprint_json['name'],
             state=sprint_json['state'],
-            start=sprint_json['startDate'],
-            end=sprint_json.get('completeDate') or sprint_json['endDate'])
+            start=parsed_time_or_none(sprint_json['startDate']),
+            end=(
+                parsed_time_or_none(sprint_json.get('completeDate')) or
+                parsed_time_or_none(sprint_json['endDate'])))
+
+        if issues_fetcher:
+            issues = issues_fetcher(sprint.id_)
+            sprint.issues = issues
+        return sprint
+
+    def to_json(self):
+        issues = list(
+            chain(*[self._issue_to_json(i) for i in self.issues]))
+        return {
+            "id": self.id_,
+            "name": self.name,
+            "state": self.state,
+            "start": formatted_time_or_none(self.start),
+            "end": formatted_time_or_none(self.end),
+            "issues": issues}
+
+    def _issue_to_json(self, issue: JiraIssue) -> List[dict]:
+        # FIXME singleton list is less than ideal
+        issue_json = issue.to_json()
+        for record in issue_json:
+            record['planned'] = self.planned_issue(issue)
+        return issue_json
+
+    def planned_issue(self, issue: JiraIssue) -> bool:
+        added_to_this_sprint = list(filter(
+                # FIXME: cast to int during parsing
+                lambda x: int(x['sprint_id']) == self.id_,
+                issue.sprint_metrics.sprint_additions))
+        if added_to_this_sprint:
+            time_added = added_to_this_sprint.pop()['timestamp']
+            return time_added <= self.start
+        else:
+            # TODO: assume unplanned if we have no sprint metrics
+            return False
