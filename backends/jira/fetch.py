@@ -142,11 +142,17 @@ def fetch_sprints() -> List[Sprint]:
 
 
 def fetch_sprint_issues(sprint_id):
+    parser = IntermediateParser()
+
+    def constructor(issue_json, fetch_func):
+        parsed_json = parser.parse(issue_json)
+        return JiraIssue.from_parsed_json(parsed_json, fetch_func)
+
     pager = CheckTotalPagerWithSubRequests(
         url=JIRA_BASEURL + (
             f'/1.0/board/{TRADING_BOARD}/sprint/{sprint_id}/issue?maxResults=50&expand=changelog'),
         items_key='issues',
-        data_constructor=JiraIssue.from_json)
+        data_constructor=constructor)
     return pager.fetch_all()
 
 
