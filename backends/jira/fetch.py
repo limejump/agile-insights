@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from functools import partial
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Optional
@@ -132,11 +133,20 @@ def fetch_all_completed_issues() -> List[JiraIssue]:
 
 
 def fetch_sprints() -> List[Sprint]:
+    def constructor(sprint_json):
+        # FIXME: a bit of a mis-nomer in this case, as sprints don't
+        # require an intermediate parsing layer.
+        return Sprint.from_parsed_json(
+            sprint_json, issues_fetcher=fetch_sprint_issues)
+
     pager = CheckLastPager(
         url=JIRA_BASEURL + (
-            f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=50'),
+            f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=3'),
         items_key='values',
-        data_constructor=Sprint.from_json)
+        data_constructor=constructor)
+    all = pager.fetch_all()
+    for sprint in all:
+        sprint.to_json()
     latest = get_latest_completed_sprint(pager.fetch_all())
     return fetch_sprint_issues(latest.id_)
 
