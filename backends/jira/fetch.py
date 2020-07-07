@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from .types import (
     JiraIssue, Sprint,
-    ISSUE_TYPES, STATUS_TYPES
+    ISSUE_TYPES, STATUS_TYPES, IntermediateParser
 )
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
@@ -116,7 +116,7 @@ def measurable_issue(issue: JiraIssue) -> bool:
 
 
 def issues_with_full_metrics(issue_json: dict) -> Optional[JiraIssue]:
-    issue = JiraIssue.from_json(issue_json)
+    issue = JiraIssue.from_parsed_json(IntermediateParser().parse(issue_json))
     if measurable_issue(issue) and issue.status == STATUS_TYPES.done:
         return issue
 

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Callable, NamedTuple, List, Optional
+from functools import partial
+from typing import Callable, NamedTuple, List, Optional, Tuple
+from re import findall
 
 from click.types import DateTime
 
@@ -37,6 +39,51 @@ STATUS_TYPES = StatusTypes(
 STATUS_NAMES = {v: k for k, v in STATUS_TYPES._asdict().items()}
 
 
+class IntermediateParser:
+    def parse(self, issue_json):
+        subtask_refs = [
+            subtask['self'] for subtask in issue_json['fields']['subtasks']]
+        status_history, sprint_history = self._parse_changelog(
+            issue_json['changelog'])
+        intermediate = {
+            "name": issue_json['key'],
+            "summary": issue_json['fields']['summary'],
+            "type": int(issue_json['fields']['issuetype']['id']),
+            "status": int(issue_json['fields']['status']['id']),
+            "story_points": issue_json['fields']['customfield_11638'],
+            "subtasks": subtask_refs,
+            "status_history": status_history,
+            "sprint_history": sprint_history}
+        return intermediate
+
+    def _parse_changelog(self, history_json: dict) -> Tuple[List, List]:
+        status_history = []
+        sprint_history = []
+        for h in history_json['histories']:
+            sh = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
+            sp = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
+            for i in h['items']:
+                if 'fieldId' in i and i['fieldId'] == 'status':
+                    sh['from'] = int(i['from'])
+                    sh['to'] = int(i['to'])
+                    status_history.append(sh)
+                if i['field'] == 'Sprint':
+                    sp.update(self._parse_sprint_change(i))
+                    sprint_history.append(sp)
+        status_history.sort(key=lambda x: x['timestamp'])
+        sprint_history.sort(key=lambda x: x['timestamp'])
+        return status_history, sprint_history
+
+    @staticmethod
+    def _parse_sprint_change(sprint_field: dict) -> dict:
+        # some muppet thought that it would be a good ideas to store the
+        # sprint change lists as comma separated strings.
+        items_re = partial(findall, r'[^,\s][^\,]*[^,\s]*')
+        return {
+            "from": set(items_re(sprint_field['from'])),
+            "to": set(items_re(sprint_field['to']))}
+
+
 @dataclass
 class StatusMetrics:
     started: bool
@@ -46,17 +93,7 @@ class StatusMetrics:
     days_taken: Optional[int]
 
     @classmethod
-    def from_json(cls, history_json: dict) -> StatusMetrics:
-        status_history = []
-        for h in history_json:
-            st = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
-            for i in h['items']:
-                if 'fieldId' in i and i['fieldId'] == 'status':
-                    st['from'] = int(i['from'])
-                    st['to'] = int(i['to'])
-                    status_history.append(st)
-        status_history.sort(key=lambda x: x['timestamp'])
-
+    def from_parsed_json(cls, status_history: dict) -> StatusMetrics:
         start_time = cls._first_inprogress_timestamp(status_history)
         end_time = cls._final_done_timestamp(status_history)
         started = bool(start_time)
@@ -92,33 +129,16 @@ class SprintMetrics:
     sprint_additions: List[dict]
 
     @classmethod
-    def from_json(cls, history_json: List[dict]) -> SprintMetrics:
+    def from_parsed_json(cls, sprint_history_json: List[dict]) -> SprintMetrics:
         sprint_additions = []
-        for h in history_json:
-            sp = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
-            for i in h['items']:
-                if i['field'] == 'Sprint':
-                    sprint_id = cls._parse_sprint_change(i)
-                    sp['sprint_id'] = sprint_id
-                    sprint_additions.append(sp)
-        sprint_additions.sort(key=lambda x: x['timestamp'])
-        return cls(sprint_additions=sprint_additions)
-
-    @staticmethod
-    def _parse_sprint_change(sprint_field: dict) -> Optional[int]:
-        # some muppet thought that it would be a good ideas to store the
-        # sprint change lists as comma separated strings. So we're trying to
-        # convert ('<sprint id1>', '<sprint_id1>, <sprint_id2>')  -> 'sprint_id2'
-        # i.e. the sprint this issue got added too.
-        # issues can also get removed from sprints, hence this being an optional type
-        from_ = set(sprint_field['from'].split(', '))
-        to = set(sprint_field['to'].split(', '))
-        sprint_added = to - from_
-        if sprint_added:
-            sprint_id = sprint_added.pop()
-            # ('<sprint_id>', '') -> {''}    :/
-            if sprint_id:
-                return int(sprint_id)
+        for sprint_changes in sprint_history_json:
+            sprint_added = sprint_changes['to'] - sprint_changes['from']
+            if sprint_added:
+                sprint_additions.append({
+                    "timestamp": sprint_changes['timestamp'],
+                    "sprint_id": sprint_added.pop()
+                })
+        return cls(sprint_additions)
 
 
 @dataclass
@@ -128,34 +148,37 @@ class JiraIssue:
     type_: int
     status: int
     story_points: Optional[float]
-    subtasks: List[JiraSubTask]
+    subtasks: List[JiraIssue]
     status_metrics: StatusMetrics
     sprint_metrics: SprintMetrics
 
     @classmethod
-    def from_json(
-            cls, issue_json: dict,
-            fetch_subtask: Callable = None) -> JiraIssue:
-        subtask_refs = issue_json['fields']['subtasks']
-        subtasks = []
-        if subtask_refs and fetch_subtask:
-            for subtask_ref in subtask_refs:
-                subtasks.append(
-                    JiraSubTask.from_json(
-                        fetch_subtask(subtask_ref['self'] + '?expand=changelog')))
-
+    def from_parsed_json(cls, intermediate, subtask_fetcher=None):
+        if subtask_fetcher:
+            subtasks = cls.fetch_subtasks(
+                subtask_fetcher, intermediate['subtasks'])
+        else:
+            subtasks = []
         return cls(
-            name=issue_json['key'],
-            summary=issue_json['fields']['summary'],
-            type_=int(issue_json['fields']['issuetype']['id']),
-            status=int(issue_json['fields']['status']['id']),
-            story_points=issue_json['fields']['customfield_11638'],
+            name=intermediate['name'],
+            summary=intermediate['summary'],
+            type_=intermediate['type'],
+            status=intermediate['status'],
+            story_points=intermediate['story_points'],
             subtasks=subtasks,
-            status_metrics=StatusMetrics.from_json(
-                issue_json['changelog']['histories']),
-            sprint_metrics=SprintMetrics.from_json(
-                issue_json['changelog']['histories'])
-            )
+            status_metrics=StatusMetrics.from_parsed_json(
+                intermediate['status_history']),
+            sprint_metrics=SprintMetrics.from_parsed_json(
+                intermediate['sprint_history']))
+
+    @staticmethod
+    def fetch_subtasks(fetcher, subtask_refs):
+        parser = IntermediateParser()
+        return [
+            JiraIssue.from_parsed_json(
+                parser.parse(
+                    fetcher(ref['self'] + '?expand=changelog')))
+            for ref in subtask_refs]
 
     def to_json(self) -> List[dict]:
         if self.subtasks:
@@ -169,47 +192,12 @@ class JiraIssue:
             "started": self.status_metrics.started,
             "finished": self.status_metrics.finished,
             "days_taken": self.status_metrics.days_taken,
+            "label": self.label
         }]
 
     @property
     def label(self):
-        self.summary or "No Label"
-
-
-@dataclass
-class JiraSubTask:
-    name: str
-    summary: str
-    status: int
-    story_points: Optional[float]
-    status_metrics: StatusMetrics
-    sprint_metrics: SprintMetrics
-    type_: int = ISSUE_TYPES.subtask
-    parent: JiraIssue = field(init=False)
-
-    @classmethod
-    def from_json(cls, issue_json: dict) -> JiraSubTask:
-        empty_sprint_metrics: List[dict] = []
-        return cls(
-            name=issue_json['key'],
-            summary=issue_json['fields']['summary'],
-            type_=int(issue_json['fields']['issuetype']['id']),
-            status=int(issue_json['fields']['status']['id']),
-            story_points=issue_json['fields']['customfield_11638'],
-            status_metrics=StatusMetrics.from_json(
-                issue_json['changelog']['histories']),
-            sprint_metrics=SprintMetrics.from_json(empty_sprint_metrics))
-
-    def to_json(self) -> dict:
-        return {
-            "type": TYPE_NAMES[self.type_],
-            "name": self.name,
-            "status": STATUS_NAMES[self.status],
-            "story_points": self.story_points,
-            "started": self.status_metrics.started,
-            "finished": self.status_metrics.finished,
-            "days_taken": self.status_metrics.days_taken,
-        }
+        return self.summary or "No Label"
 
 
 @dataclass
