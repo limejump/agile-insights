@@ -151,15 +151,17 @@ class JiraIssue:
     subtasks: List[JiraIssue]
     status_metrics: StatusMetrics
     sprint_metrics: SprintMetrics
+    parent_issue: Optional[JiraIssue] = None
 
     @classmethod
-    def from_parsed_json(cls, intermediate, subtask_fetcher=None):
+    def from_parsed_json(
+            cls, intermediate: dict, subtask_fetcher=None) -> JiraIssue:
         if subtask_fetcher:
             subtasks = cls.fetch_subtasks(
                 subtask_fetcher, intermediate['subtasks'])
         else:
             subtasks = []
-        return cls(
+        issue = cls(
             name=intermediate['name'],
             summary=intermediate['summary'],
             type_=intermediate['type'],
@@ -170,6 +172,10 @@ class JiraIssue:
                 intermediate['status_history']),
             sprint_metrics=SprintMetrics.from_parsed_json(
                 intermediate['sprint_history']))
+        if issue.subtasks:
+            for subtask in issue.subtasks:
+                subtask.parent_issue = issue
+        return issue
 
     @staticmethod
     def fetch_subtasks(
@@ -198,7 +204,11 @@ class JiraIssue:
 
     @property
     def label(self):
-        return self.summary or "No Label"
+        if self.parent_issue:
+            parent_label = self.parent_issue.label
+        else:
+            parent_label = None
+        return parent_label or self.summary or "No Label"
 
 
 @dataclass
