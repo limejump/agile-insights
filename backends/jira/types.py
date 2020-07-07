@@ -172,12 +172,13 @@ class JiraIssue:
                 intermediate['sprint_history']))
 
     @staticmethod
-    def fetch_subtasks(fetcher, subtask_refs):
+    def fetch_subtasks(
+            fetcher: Callable, subtask_refs: List[str]) -> List[JiraIssue]:
         parser = IntermediateParser()
         return [
             JiraIssue.from_parsed_json(
                 parser.parse(
-                    fetcher(ref['self'] + '?expand=changelog')))
+                    fetcher(ref + '?expand=changelog')))
             for ref in subtask_refs]
 
     def to_json(self) -> List[dict]:
