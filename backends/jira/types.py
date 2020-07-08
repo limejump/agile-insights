@@ -273,6 +273,10 @@ class Sprint:
             record['planned'] = self.planned_issue(issue)
         return issue_json
 
+
+    #
+    # -------- Issue predicates and filters ----------
+    #
     def planned_issue(self, issue: JiraIssue) -> bool:
         added_to_this_sprint = list(filter(
                 lambda x: x['sprint_id'] == self.id_,
@@ -283,3 +287,30 @@ class Sprint:
         else:
             # TODO: assume unplanned if we have no sprint metrics
             return False
+
+    def started_in_sprint(self, issue: JiraIssue) -> bool:
+        started = issue.status_metrics.started
+        start_time = issue.status_metrics.start
+        started_in_sprint = (
+            started and bool(start_time) and
+            self.start <= start_time <= self.end)
+        # FIXME: Sometimes tockets move straight from ToDo to Done
+        # i.e. finished before they started
+        return started_in_sprint or self.finished_in_sprint(issue)
+
+    def finished_in_sprint(self, issue: JiraIssue) -> bool:
+        finished = issue.status_metrics.finished
+        end_time = issue.status_metrics.end
+
+        return (
+            finished and bool(end_time) and
+            self.start <= end_time <= self.end
+        )
+
+    def finished_before_sprint_start(self, issue: JiraIssue) -> bool:
+        finished = issue.status_metrics.finished
+        end_time = issue.status_metrics.end
+
+        return (
+            finished and bool(end_time) and
+            end_time < self.start)
