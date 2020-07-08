@@ -39,7 +39,10 @@ def sprints():
 @sprints.command()
 def latest():
     data = fetch_sprints()
-    print(data)
+    for sprint_data in data:
+        with open(join(
+                data_dir, f"TRAD-Sprint-{sprint_data['id']}.json"), 'w') as f:
+            json.dump(sprint_data, f, indent=2)
 
 
 @cli.group()

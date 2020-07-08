@@ -52,6 +52,31 @@ for trace in px.line(
         color_discrete_sequence=px.colors.qualitative.Vivid).data:
     fig2.add_trace(trace)
 
+pie_chart_data = {}
+for sprint_file in [
+    join(abspath(dirname(__file__)), 'datasets', filename)
+    for filename in [
+        'TRAD-Sprint-308.json',
+        'TRAD-Sprint-313.json',
+        'TRAD-Sprint-319.json']]:
+    with open(sprint_file) as f:
+        data = json.load(f)
+    name = data['name']
+    issues = data['issues']
+    pie_chart_data[name] = {
+        'issue': [i['label'] for i in issues],
+        'type': [i['type'] for i in issues],
+        'days_taken': [i['days_taken'] for i in issues]}
+
+children = []
+for k, v in pie_chart_data.items():
+    children.append(html.Div(children=k))
+    children.append(
+        dcc.Graph(
+            id=k,
+            figure=px.sunburst(
+                v, path=['type', 'issue'])))
+
 app.layout = html.Div(children=[
     html.H1(children='LimeJump Tech Metrics'),
 
@@ -71,8 +96,8 @@ app.layout = html.Div(children=[
     dcc.Graph(
         id='Duration vs end date',
         figure=fig2
-    )
-])
+    ),
+] + children)
 
 if __name__ == '__main__':
     app.run_server(debug=True)
