@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from itertools import chain
-from os import name
-import re
 from typing import Callable, NamedTuple, List, Optional, Tuple
 from re import findall
-
 
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
