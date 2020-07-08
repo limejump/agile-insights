@@ -141,7 +141,7 @@ def fetch_sprints() -> List[Sprint]:
 
     pager = CheckLastPager(
         url=JIRA_BASEURL + (
-            f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=3'),
+            f'/1.0/board/{TRADING_BOARD}/sprint?maxResults=50'),
         items_key='values',
         data_constructor=constructor)
     all = pager.fetch_all()
