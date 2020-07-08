@@ -267,12 +267,18 @@ class Sprint:
             "issues": issues}
 
     def _issue_to_json(self, issue: JiraIssue) -> List[dict]:
-        # FIXME singleton list is less than ideal
-        issue_json = issue.to_json()
-        for record in issue_json:
-            record['planned'] = self.planned_issue(issue)
-        return issue_json
-
+        # Due to the Jira heirachy the issue_json is either a singleton
+        # list containing 'The' Issue or this list of subtasks.
+        issues = issue.subtasks or [issue]
+        issues_json = issue.to_json()
+        filtered_issues = []
+        for json_record, issue in zip(issues_json, issues):
+            json_record['planned'] = self.planned_issue(issue)
+            json_record['started_in_sprint'] = self.started_in_sprint(issue)
+            json_record['finished_in_sprint'] = self.finished_in_sprint(issue)
+            if not self.finished_before_sprint_start(issue):
+                filtered_issues.append(json_record)
+        return filtered_issues
 
     #
     # -------- Issue predicates and filters ----------
