@@ -233,6 +233,7 @@ class Sprint:
     name: str
     state: str
     start: datetime
+    # FIXME: could be None for 'active' sprints
     end: datetime
     issues: Optional[List[JiraIssue]] = None
 
@@ -243,10 +244,11 @@ class Sprint:
             id_=sprint_json['id'],
             name=sprint_json['name'],
             state=sprint_json['state'],
-            start=parsed_time_or_none(sprint_json['startDate']),
+            start=datetime.strptime(
+                sprint_json['startDate'], TIMEFORMAT),
             end=(
                 parsed_time_or_none(sprint_json.get('completeDate')) or
-                parsed_time_or_none(sprint_json['endDate'])))
+                datetime.strptime(sprint_json['endDate'], TIMEFORMAT)))
 
         if issues_fetcher:
             issues = issues_fetcher(sprint.id_)
