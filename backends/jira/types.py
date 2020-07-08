@@ -95,8 +95,8 @@ class IntermediateParser:
         # sprint change lists as comma separated strings.
         items_re = partial(findall, r'[^,\s][^\,]*[^,\s]*')
         return {
-            "from": set(items_re(sprint_field['from'])),
-            "to": set(items_re(sprint_field['to']))}
+            "from": set(map(int, items_re(sprint_field['from']))),
+            "to": set(map(int, items_re(sprint_field['to'])))}
 
 
 @dataclass
@@ -276,8 +276,7 @@ class Sprint:
 
     def planned_issue(self, issue: JiraIssue) -> bool:
         added_to_this_sprint = list(filter(
-                # FIXME: cast to int during parsing
-                lambda x: int(x['sprint_id']) == self.id_,
+                lambda x: x['sprint_id'] == self.id_,
                 issue.sprint_metrics.sprint_additions))
         if added_to_this_sprint:
             time_added = added_to_this_sprint.pop()['timestamp']
