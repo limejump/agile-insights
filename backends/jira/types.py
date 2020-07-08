@@ -9,7 +9,6 @@ import re
 from typing import Callable, NamedTuple, List, Optional, Tuple
 from re import findall
 
-from click.types import DateTime
 
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
@@ -42,16 +41,14 @@ STATUS_TYPES = StatusTypes(
 STATUS_NAMES = {v: k for k, v in STATUS_TYPES._asdict().items()}
 
 
-def formatted_time_or_none(time):
+def formatted_time_or_none(time) -> Optional[str]:
     if time is not None:
-        time = datetime.strftime(time, TIMEFORMAT)
-    return time
+        return datetime.strftime(time, TIMEFORMAT)
 
 
-def parsed_time_or_none(time):
+def parsed_time_or_none(time) -> Optional[datetime]:
     if time is not None:
-        time = datetime.strptime(time, TIMEFORMAT)
-    return time
+        return datetime.strptime(time, TIMEFORMAT)
 
 
 class IntermediateParser:
@@ -103,8 +100,8 @@ class IntermediateParser:
 class StatusMetrics:
     started: bool
     finished: bool
-    start: Optional[DateTime]
-    end: Optional[DateTime]
+    start: Optional[datetime]
+    end: Optional[datetime]
     days_taken: Optional[int]
 
     @classmethod
