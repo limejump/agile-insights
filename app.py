@@ -15,22 +15,18 @@ with open(
         'datasets', 'jira-all-issues.json'), 'r') as f:
     issues = json.load(f)
 
-df = pd.DataFrame(
-    {
-        'storypoints': [i['metrics']['storypoints'] for i in issues],
-        'days_taken': [i['metrics']['days_taken'] for i in issues]
-    }
-)
-fig = px.scatter(df, x="storypoints", y="days_taken")
+df = pd.DataFrame({
+    'story_points':  [i['story_points'] for i in issues],
+    'days_taken': [i['days_taken'] for i in issues]
+    })
+fig = px.scatter(df, x="story_points", y="days_taken")
 
 
-df2 = pd.DataFrame(
-    {
-        'days_taken': [i['metrics']['days_taken'] for i in issues],
-        'end_date': [i['metrics']['resolution_date'] for i in issues],
-        'name': [i['name'] for i in issues]
-    }
-)
+df2 = pd.DataFrame({
+    'days_taken': [i['days_taken'] for i in issues],
+    'end_date': [i['end_time'] for i in issues],
+    'name': [i['name'] for i in issues]
+    })
 
 percent_85 = df2.quantile(0.85).days_taken
 percent_50 = df2.quantile(0.5).days_taken
