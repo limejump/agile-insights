@@ -132,12 +132,14 @@ def fetch_all_completed_issues() -> List[JiraIssue]:
     return pager.fetch_all()
 
 
-def fetch_sprints() -> List[Sprint]:
-    def constructor(sprint_json):
-        # FIXME: a bit of a mis-nomer in this case, as sprints don't
-        # require an intermediate parsing layer.
-        return Sprint.from_parsed_json(
-            sprint_json, issues_fetcher=fetch_sprint_issues)
+def fetch_closed_sprint_urls() -> List[str]:
+    # The sprint endpoint doesn't respect the maxResults param.
+    # We rarely want to construct sprint object with full issue lists
+    # for every sprint, so just fetch the urls as an optimisation
+    def constructor(sprint_json: dict) -> Optional[str]:
+        print(sprint_json['name'])
+        if sprint_json['state'] == 'closed':
+            return sprint_json['self']
 
     pager = CheckLastPager(
         url=JIRA_BASEURL + (
@@ -145,10 +147,20 @@ def fetch_sprints() -> List[Sprint]:
         items_key='values',
         data_constructor=constructor)
     all = pager.fetch_all()
-    for sprint in all:
-        sprint.to_json()
-    latest = get_latest_completed_sprint(pager.fetch_all())
-    return fetch_sprint_issues(latest.id_)
+    return all
+
+
+def fetch_sprints(past: int = 3) -> List[dict]:
+    closed_sprint_urls = fetch_closed_sprint_urls()
+    all_ = [
+        Sprint.from_parsed_json(
+            requests.get(
+                url, auth=HTTPBasicAuth(
+                    "grahame.gardiner@limejump.com", MY_TOKEN)
+            ).json(), issues_fetcher=fetch_sprint_issues)
+        for url in closed_sprint_urls[-past:]
+    ]
+    return [sprint.to_json() for sprint in all_]
 
 
 def fetch_sprint_issues(sprint_id):
