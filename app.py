@@ -2,6 +2,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 import json
 from os.path import abspath, dirname, join
@@ -61,21 +62,31 @@ for sprint_file in [
         'TRAD-Sprint-319.json']]:
     with open(sprint_file) as f:
         data = json.load(f)
-    name = data['name']
-    issues = data['issues']
-    pie_chart_data[name] = {
+    issues = [i for i in data['issues'] if i['planned']]
+    pie_chart_data[data['name']] = {
         'issue': [i['label'] for i in issues],
         'type': [i['type'] for i in issues],
+        'planned': [
+            'planned' if i['planned'] else 'unplanned'
+            for i in issues],
         'days_taken': [i['days_taken'] for i in issues]}
 
 children = []
 for k, v in pie_chart_data.items():
     children.append(html.Div(children=k))
+    plot = px.sunburst(
+        v, path=['planned', 'type', 'issue'],
+        width=800, height=800)
+    planned = go.Figure()
+    planned.add_trace(go.Sunburst(
+        labels=plot['data'][0]['labels'],
+        parents=plot['data'][0]['parents'],
+        ids=plot['data'][0]['ids']))
+    planned.update_layout(height=600, width=1000, title_text="Sprint at a glance")
     children.append(
         dcc.Graph(
             id=k,
-            figure=px.sunburst(
-                v, path=['type', 'issue'])))
+            figure=planned))
 
 app.layout = html.Div(children=[
     html.H1(children='LimeJump Tech Metrics'),
