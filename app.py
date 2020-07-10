@@ -157,10 +157,11 @@ for trace in px.line(
 children = []
 for filepath in [
     join(abspath(dirname(__file__)), 'datasets', filename)
-    for filename in [
+    for filename in reversed([
         'TRAD-Sprint-308.json',
         'TRAD-Sprint-313.json',
-        'TRAD-Sprint-319.json']]:
+        'TRAD-Sprint-319.json',
+        'TRAD-Sprint-334.json'])]:
     sprint = Sprint(filepath)
     children.extend(
         [html.Div(children=sprint.name),
