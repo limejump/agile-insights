@@ -54,9 +54,15 @@ class IntermediateParser:
             subtask['self'] for subtask in issue_json['fields']['subtasks']]
         status_history, sprint_history = self._parse_changelog(
             issue_json['changelog'])
+        parent = issue_json['fields'].get('parent')
+        if parent and int(parent['fields']['issuetype']['id']) == ISSUE_TYPES.epic:
+            epic = parent['fields']['summary']
+        else:
+            epic = None
         intermediate = {
             "name": issue_json['key'],
             "summary": issue_json['fields']['summary'],
+            "epic": epic,
             "type": int(issue_json['fields']['issuetype']['id']),
             "status": int(issue_json['fields']['status']['id']),
             "story_points": issue_json['fields']['customfield_11638'],
@@ -155,6 +161,7 @@ class SprintMetrics:
 class JiraIssue:
     name: str
     summary: str
+    epic: Optional[str]
     type_: int
     status: int
     story_points: Optional[float]
@@ -175,6 +182,7 @@ class JiraIssue:
         issue = cls(
             name=intermediate['name'],
             summary=intermediate['summary'],
+            epic=intermediate['epic'],
             type_=intermediate['type'],
             status=intermediate['status'],
             story_points=intermediate['story_points'],
@@ -186,6 +194,7 @@ class JiraIssue:
         if issue.subtasks:
             for subtask in issue.subtasks:
                 subtask.parent_issue = issue
+                subtask.epic = issue.epic
                 subtask.sprint_metrics = issue.sprint_metrics
         return issue
 
@@ -221,7 +230,7 @@ class JiraIssue:
             parent_label = self.parent_issue.label
         else:
             parent_label = None
-        return parent_label or self.summary or "No Label"
+        return self.epic or parent_label or self.summary or "No Label"
 
 
 @dataclass
