@@ -8,9 +8,9 @@ from .types import (
     JiraIssue, Sprint,
     ISSUE_TYPES, STATUS_TYPES, IntermediateParser
 )
+from config import TRADING_BOARD
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
-TRADING_BOARD = 140
 MY_TOKEN = 'eVDgTL8kVgdXFaiJtbCF4001'
 DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
 ALL_ISSUES_FILENAME = 'jira-all-issues.json'

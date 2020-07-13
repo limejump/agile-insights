@@ -9,6 +9,7 @@ from backends.jira import (
     ALL_ISSUES_FILENAME, DUMPFORMAT,
     fetch_all_completed_issues, fetch_sprints)
 
+from config import JIRA_SPRINTS_SOURCE_SINK
 
 here = abspath(dirname(__file__))
 data_dir = join(here, 'datasets')
@@ -38,11 +39,14 @@ def sprints():
 
 @sprints.command()
 def latest():
-    data = fetch_sprints()
-    for sprint_data in data:
-        with open(join(
-                data_dir, f"TRAD-Sprint-{sprint_data['id']}.json"), 'w') as f:
-            json.dump(sprint_data, f, indent=2)
+    for (board_id, data_folder) in JIRA_SPRINTS_SOURCE_SINK:
+        data = fetch_sprints(board_id)
+        for sprint_data in data:
+            with open(join(
+                here, data_folder,
+                f"{sprint_data['id']}-{sprint_data['name'].replace(' ', '_')}.json")
+                    , 'w') as f:
+                json.dump(sprint_data, f, indent=2)
 
 
 @cli.group()
