@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from itertools import chain
-from typing import Callable, NamedTuple, List, Optional, Tuple
+from typing import Callable, NamedTuple, List, Optional, Set, Tuple
 from re import findall
+from enum import EnumMeta, Enum, auto
 
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
@@ -13,29 +14,34 @@ TRADING_BOARD = 140
 TIMEFORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
 
-IssueTypes = NamedTuple(
-    "IssueTypes", [
-        ("epic", int),
-        ("story", int),
-        ("subtask", int), ('task', int),
-        ('bug', int),
-        ('spike', int)
-        ])
-ISSUE_TYPES = IssueTypes(
-    story=10350, task=10351, bug=10352, epic=10353, subtask=10354, spike=10364)
-TYPE_NAMES = {v: k for k, v in ISSUE_TYPES._asdict().items()}
 
-StatusTypes = NamedTuple(
-    "StatusTypes", [
-        ('todo', int),
-        ('inprogress', int),
-        ('done', int),
-        ('codereview', int),
-    ])
+class JiraEnumMeta(EnumMeta):
+    def __getitem__(cls, name):
+        return super().__getitem__(cls.canonicalize_name(name))
 
-STATUS_TYPES = StatusTypes(
-    todo=11490, inprogress=11491, done=11492, codereview=11493)
-STATUS_NAMES = {v: k for k, v in STATUS_TYPES._asdict().items()}
+    @staticmethod
+    def canonicalize_name(name: str) -> str:
+        return name.replace(' ', '').replace('-', '').lower()
+
+
+class JiraEnum(Enum, metaclass=JiraEnumMeta):
+    pass
+
+
+class IssueTypes(JiraEnum):
+    epic = auto()
+    bug = auto()
+    story = auto()
+    task = auto()
+    subtask = auto()
+    spike = auto()
+
+
+class StatusTypes(JiraEnum):
+    todo = auto()
+    inprogress = auto()
+    done = auto()
+    codereview = auto()
 
 
 def formatted_time_or_none(time) -> Optional[str]:
@@ -49,13 +55,18 @@ def parsed_time_or_none(time) -> Optional[datetime]:
 
 
 class IntermediateParser:
+    def __init__(self, from_issue_id, from_status_id):
+        self.from_issue_id = from_issue_id
+        self.from_status_id = from_status_id
+
     def parse(self, issue_json):
         subtask_refs = [
             subtask['self'] for subtask in issue_json['fields']['subtasks']]
         status_history, sprint_history = self._parse_changelog(
             issue_json['changelog'])
         parent = issue_json['fields'].get('parent')
-        if parent and int(parent['fields']['issuetype']['id']) == ISSUE_TYPES.epic:
+        if parent and self.from_status_id(
+                parent['fields']['issuetype']['id']) == IssueTypes.epic:
             epic = parent['fields']['summary']
         else:
             epic = None
@@ -63,8 +74,10 @@ class IntermediateParser:
             "name": issue_json['key'],
             "summary": issue_json['fields']['summary'],
             "epic": epic,
-            "type": int(issue_json['fields']['issuetype']['id']),
-            "status": int(issue_json['fields']['status']['id']),
+            "type": self.from_issue_id(
+                issue_json['fields']['issuetype']['id']),
+            "status": self.from_status_id(
+                issue_json['fields']['status']['id']),
             "story_points": issue_json['fields']['customfield_11638'],
             "subtasks": subtask_refs,
             "status_history": status_history,
@@ -79,8 +92,8 @@ class IntermediateParser:
             sp = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
             for i in h['items']:
                 if 'fieldId' in i and i['fieldId'] == 'status':
-                    sh['from'] = int(i['from'])
-                    sh['to'] = int(i['to'])
+                    sh['from'] = self.from_status_id(i['from'])
+                    sh['to'] = self.from_status_id(i['to'])
                     status_history.append(sh)
                 if i['field'] == 'Sprint':
                     sp.update(self._parse_sprint_change(i))
@@ -125,13 +138,13 @@ class StatusMetrics:
     @staticmethod
     def _first_inprogress_timestamp(status_changes):
         for status_change in status_changes:
-            if status_change['to'] == STATUS_TYPES.inprogress:
+            if status_change['to'] == StatusTypes.inprogress:
                 return status_change['timestamp']
 
     @staticmethod
     def _final_done_timestamp(status_changes):
         for status_change in reversed(status_changes):
-            if status_change['to'] == STATUS_TYPES.done:
+            if status_change['to'] == StatusTypes.done:
                 return status_change['timestamp']
 
     @staticmethod
@@ -162,8 +175,8 @@ class JiraIssue:
     name: str
     summary: str
     epic: Optional[str]
-    type_: int
-    status: int
+    type_: IssueTypes
+    status: StatusTypes
     story_points: Optional[float]
     subtasks: List[JiraIssue]
     status_metrics: StatusMetrics
@@ -173,10 +186,11 @@ class JiraIssue:
     @classmethod
     def from_parsed_json(
             cls, intermediate: dict,
+            parser: IntermediateParser = None,
             subtask_fetcher: Callable = None) -> JiraIssue:
-        if subtask_fetcher:
+        if parser and subtask_fetcher:
             subtasks = cls.fetch_subtasks(
-                subtask_fetcher, intermediate['subtasks'])
+                parser, subtask_fetcher, intermediate['subtasks'])
         else:
             subtasks = []
         issue = cls(
@@ -200,8 +214,8 @@ class JiraIssue:
 
     @staticmethod
     def fetch_subtasks(
+            parser: IntermediateParser,
             fetcher: Callable, subtask_refs: List[str]) -> List[JiraIssue]:
-        parser = IntermediateParser()
         return [
             JiraIssue.from_parsed_json(
                 parser.parse(
@@ -212,9 +226,9 @@ class JiraIssue:
         if self.subtasks:
             return list(chain(*[subt.to_json() for subt in self.subtasks]))
         return [{
-            "type": TYPE_NAMES[self.type_],
+            "type": self.type_.name,
             "name": self.name,
-            "status": STATUS_NAMES[self.status],
+            "status": self.status.name,
             "story_points": self.story_points,
             "started": self.status_metrics.started,
             "finished": self.status_metrics.finished,
