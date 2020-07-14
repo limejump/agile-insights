@@ -42,6 +42,13 @@ class StatusTypes(JiraEnum):
     inprogress = auto()
     done = auto()
     codereview = auto()
+def maybe_status(json_val: str) -> Optional[StatusTypes]:
+    try:
+        status = StatusTypes[json_val]
+    except KeyError:
+        print(f"Rejected Status Val: {json_val}")
+    else:
+        return status
 
 
 def formatted_time_or_none(time) -> Optional[str]:
@@ -88,8 +95,8 @@ class IntermediateParser:
             sp = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
             for i in h['items']:
                 if 'fieldId' in i and i['fieldId'] == 'status':
-                    sh['from'] = self.from_status_id(i['from'])
-                    sh['to'] = self.from_status_id(i['to'])
+                    sh['from'] = maybe_status(i['fromString'])
+                    sh['to'] = maybe_status(i['toString'])
                     status_history.append(sh)
                 if i['field'] == 'Sprint':
                     sp.update(self._parse_sprint_change(i))
