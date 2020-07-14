@@ -55,18 +55,14 @@ def parsed_time_or_none(time) -> Optional[datetime]:
 
 
 class IntermediateParser:
-    def __init__(self, from_issue_id, from_status_id):
-        self.from_issue_id = from_issue_id
-        self.from_status_id = from_status_id
-
     def parse(self, issue_json):
         subtask_refs = [
             subtask['self'] for subtask in issue_json['fields']['subtasks']]
         status_history, sprint_history = self._parse_changelog(
             issue_json['changelog'])
         parent = issue_json['fields'].get('parent')
-        if parent and self.from_status_id(
-                parent['fields']['issuetype']['id']) == IssueTypes.epic:
+        if parent and IssueTypes[
+                parent['fields']['issuetype']['name']] == IssueTypes.epic:
             epic = parent['fields']['summary']
         else:
             epic = None
@@ -74,10 +70,10 @@ class IntermediateParser:
             "name": issue_json['key'],
             "summary": issue_json['fields']['summary'],
             "epic": epic,
-            "type": self.from_issue_id(
-                issue_json['fields']['issuetype']['id']),
-            "status": self.from_status_id(
-                issue_json['fields']['status']['id']),
+            "type": IssueTypes[
+                issue_json['fields']['issuetype']['name']],
+            "status": StatusTypes[
+                issue_json['fields']['status']['name']],
             "story_points": issue_json['fields']['customfield_11638'],
             "subtasks": subtask_refs,
             "status_history": status_history,
@@ -186,11 +182,10 @@ class JiraIssue:
     @classmethod
     def from_parsed_json(
             cls, intermediate: dict,
-            parser: IntermediateParser = None,
             subtask_fetcher: Callable = None) -> JiraIssue:
-        if parser and subtask_fetcher:
+        if subtask_fetcher:
             subtasks = cls.fetch_subtasks(
-                parser, subtask_fetcher, intermediate['subtasks'])
+                subtask_fetcher, intermediate['subtasks'])
         else:
             subtasks = []
         issue = cls(
@@ -214,8 +209,8 @@ class JiraIssue:
 
     @staticmethod
     def fetch_subtasks(
-            parser: IntermediateParser,
             fetcher: Callable, subtask_refs: List[str]) -> List[JiraIssue]:
+        parser = IntermediateParser()
         return [
             JiraIssue.from_parsed_json(
                 parser.parse(

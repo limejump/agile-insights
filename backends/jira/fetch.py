@@ -119,9 +119,7 @@ def measurable_issue(issue: JiraIssue) -> bool:
 
 def issues_with_full_metrics(board_id, issue_json: dict) -> Optional[JiraIssue]:
     issue = JiraIssue.from_parsed_json(
-        IntermediateParser(
-            from_status_id=make_from_status_id(board_id),
-            from_issue_id=make_from_issue_id()).parse(issue_json))
+        IntermediateParser().parse(issue_json))
     if measurable_issue(issue) and issue.status == StatusTypes.done:
         return issue
 
@@ -136,56 +134,6 @@ def fetch_all_completed_issues() -> List[JiraIssue]:
     return pager.fetch_all()
 
 
-def make_from_issue_id():
-    issue_types = requests.get(
-        'https://limejump.atlassian.net/rest/api/3/issuetype',
-        auth=HTTPBasicAuth(
-            "grahame.gardiner@limejump.com", MY_TOKEN)).json()
-
-    name_key = lambda x: x[0]
-
-    issue_type_groups = groupby(sorted([
-        (i['name'], i['id']) for i in issue_types],
-        key=name_key), key=name_key)
-
-    id_to_issue_type = {}
-    for name, ids in issue_type_groups:
-        try:
-            issue_type = IssueTypes[name]
-        # We only care about some issue types
-        except KeyError:
-            # FIXME: logging??
-            print("Discarding issue type:", name)
-            continue
-        for _, issue_id in ids:
-            existing_type = id_to_issue_type.get(issue_id)
-            if existing_type and existing_type != issue_type:
-                raise KeyError(
-                    f"Overlapping issue id's: {issue_type}, {existing_type}")
-            # Err yup, multiple id's for the same issue type
-            id_to_issue_type[issue_id] = issue_type
-    return id_to_issue_type.get
-
-
-def make_from_status_id(board_id):
-    config = requests.get(
-        f'{JIRA_BASEURL}/1.0/board/{board_id}/configuration',
-        auth=HTTPBasicAuth(
-            "grahame.gardiner@limejump.com", MY_TOKEN)).json()
-    status_types = config['columnConfig']['columns']
-    id_to_status_type = {}
-    for status_record in status_types:
-        name = status_record['name']
-        try:
-            status_type = StatusTypes[name]
-        except KeyError:
-            # FIXME: logging
-            print("Discarding status type:", name)
-            continue
-        statuses = status_record['statuses']
-        for status in statuses:
-            id_to_status_type[status['id']] = status_type
-    return id_to_status_type.get
 
 
 def fetch_closed_sprint_urls(board_id) -> List[str]:
@@ -221,13 +169,11 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
 
 
 def fetch_sprint_issues(board_id, sprint_id):
-    parser = IntermediateParser(
-        from_issue_id=make_from_issue_id(),
-        from_status_id=make_from_status_id(board_id))
+    parser = IntermediateParser()
 
     def constructor(issue_json, fetch_func):
         parsed_json = parser.parse(issue_json)
-        return JiraIssue.from_parsed_json(parsed_json, parser, fetch_func)
+        return JiraIssue.from_parsed_json(parsed_json, fetch_func)
 
     pager = CheckTotalPagerWithSubRequests(
         url=JIRA_BASEURL + (
