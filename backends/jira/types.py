@@ -21,7 +21,15 @@ class JiraEnumMeta(EnumMeta):
 
     @staticmethod
     def canonicalize_name(name: str) -> str:
-        return name.replace(' ', '').replace('-', '').lower()
+        mappings = {
+            'underreview': 'codereview'
+        }
+        lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
+        mapped = mappings.get(lower_no_spaces)
+        # a cx specific column
+        if 'qa' in lower_no_spaces:
+            lower_no_spaces = 'stagingqa'
+        return mapped or lower_no_spaces
 
 
 class JiraEnum(Enum, metaclass=JiraEnumMeta):
@@ -42,6 +50,10 @@ class StatusTypes(JiraEnum):
     inprogress = auto()
     done = auto()
     codereview = auto()
+    blocked = auto()
+    stagingqa = auto()
+
+
 def maybe_status(json_val: str) -> Optional[StatusTypes]:
     try:
         status = StatusTypes[json_val]
