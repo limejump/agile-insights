@@ -43,6 +43,9 @@ class IssueTypes(JiraEnum):
     task = auto()
     subtask = auto()
     spike = auto()
+    userstory = auto()
+    adhoc = auto()
+    documentation = auto()
 
 
 class StatusTypes(JiraEnum):
