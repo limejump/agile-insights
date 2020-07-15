@@ -12,6 +12,7 @@ setuptools.setup(
         'arrow',
         'click',
         'dash',
+        'dash-bootstrap-components',
         'requests',
         'pandas'
     ],
