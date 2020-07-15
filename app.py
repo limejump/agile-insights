@@ -14,13 +14,15 @@ from os.path import abspath, dirname, join, isfile, split
 
 from config import JIRA_SPRINTS_SOURCE_SINK, TRADING_SPRINT_FOLDER
 
+pd.options.mode.chained_assignment = None
+
 
 class Sprint:
     def __init__(self, data_filepath):
         with open(data_filepath) as f:
             data = json.load(f)
-        print(data_filepath)
         self._data = data
+        self.issues_df = pd.DataFrame.from_records(data['issues'])
 
     @property
     def name(self):
@@ -42,19 +44,13 @@ class Sprint:
             i for i in self._data['issues']
             if i['planned']]
 
-    @staticmethod
-    def _mk_sub_pie_trace(collection, key,):
-        data = [i[key] for i in collection]
-        counts = Counter(data)
-        names = []
-        vals = []
-        for k, v in counts.items():
-            names.append(k)
-            vals.append(v)
+    def _mk_sub_pie_trace(self, df_filters):
+        filtered = self.issues_df[df_filters]
         pie = px.pie(
-            pd.DataFrame(dict(names=names, values=vals)),
-            values='values',
-            names='names')
+            filtered.groupby('label').size().reset_index(
+                name='issue_count'),
+            values='issue_count',
+            names='label')
         # can only make subplots from graph objects
         return go.Pie(
             labels=pie.data[0]['labels'],
@@ -62,23 +58,23 @@ class Sprint:
             scalegroup='one')
 
     def mk_summary_table(self):
-        planned_count = len(self.planned_issues)
-        planned_delivered = len([
-            i for i in self.planned_issues
-            if i['finished_in_sprint']])
-        unplanned_count = len(self.unplanned_issues)
-        unplanned_delivered = len([
-            i for i in self.unplanned_issues
-            if i['finished_in_sprint']])
+        summary_df = self.issues_df.groupby(
+            ['planned', 'finished_in_sprint']).size().reset_index(
+                    name="issue_count")
+        summary_df['planned'].replace({
+            True: "planned", False: "unplanned"}, inplace=True)
+        committed_df = summary_df[["planned", "issue_count"]].groupby(
+            ['planned'], as_index=False).sum()
+        delivered_df = summary_df[summary_df.finished_in_sprint.eq(True)]
         fig = {
             'data': [
                 go.Bar(
-                    x=["planned", "unplanned"],
-                    y=[planned_count, unplanned_count],
+                    x=committed_df.planned,
+                    y=committed_df.issue_count,
                     name="committed"),
                 go.Bar(
-                    x=["planned", "unplanned"],
-                    y=[planned_delivered, unplanned_delivered],
+                    x=delivered_df.planned,
+                    y=delivered_df.issue_count,
                     name="delivered")],
             'layout': go.Layout(
                 barmode='overlay', yaxis_title="issue count")
@@ -93,25 +89,23 @@ class Sprint:
             subplot_titles=['Planned','Planned Delivered', 'Unplanned', 'Unplanned Delivered'])
         fig.add_trace(
             self._mk_sub_pie_trace(
-                self.planned_issues, 'label'),
+                df_filters=self.issues_df.planned.eq(True)),
             1, 1)
         fig.add_trace(
-            self._mk_sub_pie_trace([
-                    i for i in self.planned_issues
-                    if i['started_in_sprint'] and i['finished_in_sprint']
-                ],
-                'label'),
+            self._mk_sub_pie_trace(
+                df_filters=(
+                    self.issues_df.planned.eq(True) &
+                    self.issues_df.finished_in_sprint.eq(True))),
             1, 2)
         fig.add_trace(
             self._mk_sub_pie_trace(
-                self.unplanned_issues, 'label'),
+                df_filters=self.issues_df.planned.eq(False)),
             1, 3)
         fig.add_trace(
-            self._mk_sub_pie_trace([
-                    i for i in self.unplanned_issues
-                    if i['started_in_sprint'] and i['finished_in_sprint']
-                ],
-                'label'),
+            self._mk_sub_pie_trace(
+                df_filters=(
+                    self.issues_df.planned.eq(False) &
+                    self.issues_df.finished_in_sprint.eq(True))),
             1, 4)
         fig.update_layout(
             title_text='Sprint at a Glance',
