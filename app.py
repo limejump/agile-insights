@@ -1,26 +1,34 @@
-import collections
+from backends.jira.types import SprintMetrics
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_table
+from dash.dependencies import Input, Output
 from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 import json
-from os.path import abspath, dirname, join
+from os import listdir
+from os.path import abspath, dirname, join, isfile, split
+
+from config import JIRA_SPRINTS_SOURCE_SINK, TRADING_SPRINT_FOLDER
 
 
 class Sprint:
     def __init__(self, data_filepath):
         with open(data_filepath) as f:
             data = json.load(f)
+        print(data_filepath)
         self._data = data
 
     @property
     def name(self):
         return self._data['name']
+
+    @property
+    def goal(self):
+        return self._data['goal']
 
     @property
     def unplanned_issues(self):
@@ -62,17 +70,20 @@ class Sprint:
         unplanned_delivered = len([
             i for i in self.unplanned_issues
             if i['finished_in_sprint']])
-        df = pd.DataFrame({
-            "state": ['planned', 'planned', 'unplanned', 'unplanned'],
-            'status': ['committed', 'delivered', 'committed', 'delivered'],
-            "issue_count": [
-                planned_count, planned_delivered,
-                unplanned_count, unplanned_delivered]
-        })
-        return px.bar(df, x='status', y='issue_count', color='state')
-        # return dash_table.DataTable(
-        #     columns=[{'name': i, 'id': i} for i in df.columns],
-        #     data=df.to_dict('record'))
+        fig = {
+            'data': [
+                go.Bar(
+                    x=["planned", "unplanned"],
+                    y=[planned_count, unplanned_count],
+                    name="committed"),
+                go.Bar(
+                    x=["planned", "unplanned"],
+                    y=[planned_delivered, unplanned_delivered],
+                    name="delivered")],
+            'layout': go.Layout(
+                barmode='overlay', yaxis_title="issue count")
+        }
+        return fig
 
     def mk_overview_trace(self):
         fig = make_subplots(
@@ -173,27 +184,53 @@ for filepath in [
 
 app = dash.Dash('Limejump Tech Metrics')
 
+team_data_options = []
+for _, folder in JIRA_SPRINTS_SOURCE_SINK:
+    _, team_name = split(folder)
+    files = [f for f in listdir(folder) if isfile]
+    team_data_options.append({
+        "label": team_name,
+        "value": join(folder, files[0])})
+
+
 app.layout = html.Div(children=[
-    html.H1(children='LimeJump Tech Metrics'),
+    html.H1('Limejump Tech Latest Sprint Breakdown'),
+    html.Div(id='headers'),
+    dcc.Graph(id="planned-unplanned"),
+    dcc.Graph(id="breakdown"),
+    dcc.RadioItems(
+        id="team-picker",
+        options=team_data_options,
+        value=team_data_options[0]['value'])
+])
 
-    html.Div(children='''
-        Almost no correlation whatsoever
-    '''),
 
-    dcc.Graph(
-        id='Story Points vs Time Taken',
-        figure=fig
-    ),
+@app.callback(
+    Output('planned-unplanned', 'figure'),
+    [Input(component_id="team-picker", component_property="value")])
+def change_planned_graph(team_data_file):
+    fig = Sprint(team_data_file).mk_summary_table()
+    # fig.update_layout(transition_duration=500)
+    return fig
 
-    html.Div(children='''
-       How long does a ticket take to get from in progress to done?
-    '''),
 
-    dcc.Graph(
-        id='Duration vs end date',
-        figure=fig2
-    ),
-] + children)
+@app.callback(
+    Output('breakdown', 'figure'),
+    [Input(component_id="team-picker", component_property="value")])
+def change_breakdown_graph(team_data_file):
+    fig = Sprint(team_data_file).mk_overview_trace()
+    fig.update_layout(transition_duration=500)
+    return fig
+
+@app.callback(
+    Output('headers', 'children'),
+    [Input(component_id="team-picker", component_property="value")])
+def change_heading(team_data_file):
+    sprint = Sprint(team_data_file)
+    return [
+        html.H2(sprint.name),
+        html.H4(sprint.goal)
+    ]
 
 if __name__ == '__main__':
     app.run_server(debug=True)
