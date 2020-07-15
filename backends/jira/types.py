@@ -265,6 +265,7 @@ class JiraIssue:
 class Sprint:
     id_: int
     name: str
+    goal: str
     state: str
     start: datetime
     # FIXME: could be None for 'active' sprints
@@ -276,6 +277,7 @@ class Sprint:
             cls, sprint_json: dict, issues_fetcher: Callable = None) -> Sprint:
         sprint = cls(
             id_=sprint_json['id'],
+            goal=sprint_json['goal'],
             name=sprint_json['name'],
             state=sprint_json['state'],
             start=datetime.strptime(
@@ -295,6 +297,7 @@ class Sprint:
         return {
             "id": self.id_,
             "name": self.name,
+            "goal": self.goal,
             "state": self.state,
             "start": formatted_time_or_none(self.start),
             "end": formatted_time_or_none(self.end),
