@@ -3,90 +3,24 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-import json
 from os import listdir
-from os.path import abspath, dirname, join, isfile, split
+from os.path import join, isfile, split
 import pandas as pd
-import plotly.express as px
 
-from config import JIRA_SPRINTS_SOURCE_SINK
-from models import Sprint
+from config import FOLDERS
+from models import Forecast, Sprint
 
 pd.options.mode.chained_assignment = None
 
-
-with open(
-    join(
-        abspath(dirname(__file__)),
-        'datasets', 'jira-all-issues.json'), 'r') as f:
-    issues = json.load(f)
-
-df = pd.DataFrame({
-    'story_points':  [i['story_points'] for i in issues],
-    'days_taken': [i['days_taken'] for i in issues]
-    })
-fig = px.scatter(df, x="story_points", y="days_taken")
-
-
-df2 = pd.DataFrame({
-    'days_taken': [i['days_taken'] for i in issues],
-    'end_date': [i['end_time'] for i in issues],
-    'name': [i['name'] for i in issues]
-    })
-
-percent_85 = df2.quantile(0.85).days_taken
-percent_50 = df2.quantile(0.5).days_taken
-issue_max = df2.max(numeric_only=False)
-issue_min = df2.min(numeric_only=False)
-
-df_quants = pd.DataFrame({
-    'x': [issue_min.end_date, issue_max.end_date,
-          issue_min.end_date, issue_max.end_date],
-    'y': [percent_50, percent_50, percent_85, percent_85],
-    'name': [
-        f"50% {round(percent_50)} days",
-        f"50% {round(percent_50)} days",
-        f"85% {round(percent_85)} days",
-        f"85% {round(percent_85)} days"]
-})
-
-fig2 = px.scatter(
-    df2, x='end_date', y="days_taken", hover_name="name",
-    hover_data={'end_date': False, 'days_taken': True})
-for trace in px.line(
-        df_quants, x='x', y='y', color='name',
-        color_discrete_sequence=px.colors.qualitative.Vivid).data:
-    fig2.add_trace(trace)
-
-children = []
-for filepath in [
-    join(abspath(dirname(__file__)), 'datasets', filename)
-    for filename in reversed([
-        'TRAD-Sprint-308.json',
-        'TRAD-Sprint-313.json',
-        'TRAD-Sprint-319.json',
-        'TRAD-Sprint-334.json'])]:
-    sprint = Sprint(filepath)
-    children.extend(
-        [html.Div(children=sprint.name),
-         html.Div(dcc.Graph(
-             figure=sprint.mk_summary_table())),
-         html.Div(dcc.Graph(
-             figure=sprint.mk_overview_trace()))
-        ])
 
 app = dash.Dash(
     'Limejump Tech Metrics',
     external_stylesheets=[dbc.themes.BOOTSTRAP])
 
-team_data_options = []
-for _, folder in JIRA_SPRINTS_SOURCE_SINK:
-    _, team_name = split(folder)
-    files = [f for f in listdir(folder) if isfile]
-    team_data_options.append({
-        "label": team_name,
-        "value": join(folder, files[0])})
 
+team_data_options = [
+    {"label": team, "value": team}
+    for team in ['cx', 'billing', 'trading']]
 
 url_bar_and_content_div = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -105,19 +39,28 @@ layout_index = html.Div([
 layout_sprints = html.Div(children=[
     layout_index,
     html.H1('Limejump Tech Latest Sprint Breakdown'),
-    html.Div(id='headers'),
+    html.Div(id='sprints'),
     dcc.Graph(id="planned-unplanned"),
     dcc.Graph(id="breakdown"),
     dcc.RadioItems(
         id="team-picker",
         options=team_data_options,
         value=team_data_options[0]['value'])
-])
+    ])
 
 
 layout_forecasting = html.Div([
     layout_index,
-    html.H2('Forecasting')
+    html.H2('Forecasting'),
+    html.Div(id='forecasts'),
+    dcc.Input(
+        id='num-issues',
+        type='number'),
+    html.Div(id='actual-forecast'),
+    dcc.RadioItems(
+        id="team-picker",
+        options=team_data_options,
+        value=team_data_options[0]['value'])
 ])
 
 
@@ -147,8 +90,9 @@ def display_page(pathname):
 @app.callback(
     Output('planned-unplanned', 'figure'),
     [Input(component_id="team-picker", component_property="value")])
-def change_planned_graph(team_data_file):
-    fig = Sprint(team_data_file).mk_summary_table()
+def change_planned_graph(team_name):
+    sprint = Sprint(latest_sprint_file(team_name))
+    fig = sprint.mk_summary_table()
     # fig.update_layout(transition_duration=500)
     return fig
 
@@ -156,21 +100,63 @@ def change_planned_graph(team_data_file):
 @app.callback(
     Output('breakdown', 'figure'),
     [Input(component_id="team-picker", component_property="value")])
-def change_breakdown_graph(team_data_file):
-    fig = Sprint(team_data_file).mk_overview_trace()
+def change_breakdown_graph(team_name):
+    sprint = Sprint(latest_sprint_file(team_name))
+    fig = sprint.mk_overview_trace()
     fig.update_layout(transition_duration=500)
     return fig
 
 
 @app.callback(
-    Output('headers', 'children'),
+    Output("forecasts", "children"),
     [Input(component_id="team-picker", component_property="value")])
-def change_heading(team_data_file):
-    sprint = Sprint(team_data_file)
+def update_estimate_graph(team_name):
+    folder = FOLDERS[team_name]['historic']
+    forecast = Forecast(
+        join(folder, 'all-issues.json'))
+    return [
+        dcc.Graph(
+            id="story-points",
+            figure=forecast.mk_story_point_scatter()),
+        dcc.Graph(
+            id="overview",
+            figure=forecast.mk_time_per_issue_scatter())
+    ]
+
+
+@app.callback(
+    Output('sprints', 'children'),
+    [Input(component_id="team-picker", component_property="value")])
+def change_heading(team_name):
+    sprint = Sprint(latest_sprint_file(team_name))
     return [
         html.H2(sprint.name),
         html.H4(sprint.goal)
     ]
+
+
+@app.callback(
+    Output('actual-forecast', 'children'),
+    [Input("num-issues", "value"),
+     Input(component_id="team-picker", component_property="value")])
+def run_simulation(num_issues, team_name):
+    folder = FOLDERS[team_name]['historic']
+    forecast = Forecast(
+        join(folder, 'all-issues.json'))
+    if num_issues:
+        return dcc.Graph(
+            id="monte-carlo",
+            figure=forecast._run_montecarlo(num_issues))
+    else:
+        return "..."
+
+
+def latest_sprint_file(team_name):
+    folder = FOLDERS[team_name]['sprint']
+    latest, *_ = reversed(sorted(listdir(folder)))
+    print(listdir(folder))
+    print(latest)
+    return join(folder, latest)
 
 
 if __name__ == '__main__':
