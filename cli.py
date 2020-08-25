@@ -9,7 +9,9 @@ from backends.jira import (
     ALL_ISSUES_FILENAME, DUMPFORMAT,
     fetch_all_completed_issues, fetch_sprints)
 
-from config import JIRA_SPRINTS_SOURCE_SINK
+from config import (
+    JIRA_SPRINTS_SOURCE_SINK,
+    JIRA_HISTORIC_SOURCE_SINK)
 
 here = abspath(dirname(__file__))
 data_dir = join(here, 'datasets')
@@ -27,9 +29,11 @@ def extract():
 
 @extract.command()
 def issues():
-    data = fetch_all_completed_issues()
-    with open(join(data_dir, ALL_ISSUES_FILENAME), 'w') as f:
-        json.dump(list(chain(*[d.to_json() for d in data])), f, indent=2)
+    for (board_id, data_folder) in JIRA_HISTORIC_SOURCE_SINK:
+        data = fetch_all_completed_issues(board_id)
+        with open(join(here, data_folder,
+                'all-issues.json'), 'w') as f:
+            json.dump(list(chain(*[d.to_json() for d in data])), f, indent=2)
 
 
 @extract.group()

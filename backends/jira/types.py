@@ -21,14 +21,21 @@ class JiraEnumMeta(EnumMeta):
 
     @staticmethod
     def canonicalize_name(name: str) -> str:
+        # FIXME: this caters for both Status and Issue types
+        # they ought to be separated to reduce confusion
         mappings = {
-            'underreview': 'codereview'
+            'underreview': 'codereview',
+            'refactor': 'techdebt'
         }
         lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
         mapped = mappings.get(lower_no_spaces)
         # a cx specific column
         if 'qa' in lower_no_spaces:
-            lower_no_spaces = 'stagingqa'
+            lower_no_spaces = 'qa'
+        if 'techdebt' in lower_no_spaces:
+            lower_no_spaces = 'techdebt'
+        if 'done' in lower_no_spaces:
+            lower_no_spaces = 'done'
         return mapped or lower_no_spaces
 
 
@@ -46,6 +53,8 @@ class IssueTypes(JiraEnum):
     userstory = auto()
     adhoc = auto()
     documentation = auto()
+    techdebt = auto()
+    feature = auto()
 
 
 class StatusTypes(JiraEnum):
@@ -54,7 +63,7 @@ class StatusTypes(JiraEnum):
     done = auto()
     codereview = auto()
     blocked = auto()
-    stagingqa = auto()
+    qa = auto()
 
 
 def maybe_status(json_val: str) -> Optional[StatusTypes]:

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from functools import partial
-from itertools import groupby
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Optional
@@ -9,7 +8,6 @@ from .types import (
     IssueTypes, JiraIssue, Sprint,
     StatusTypes, IntermediateParser
 )
-from config import TRADING_BOARD
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
 MY_TOKEN = 'eVDgTL8kVgdXFaiJtbCF4001'
@@ -117,23 +115,21 @@ def measurable_issue(issue: JiraIssue) -> bool:
     return stand_alone_issue and not epic
 
 
-def issues_with_full_metrics(board_id, issue_json: dict) -> Optional[JiraIssue]:
+def issues_with_full_metrics(issue_json: dict) -> Optional[JiraIssue]:
     issue = JiraIssue.from_parsed_json(
         IntermediateParser().parse(issue_json))
     if measurable_issue(issue) and issue.status == StatusTypes.done:
         return issue
 
 
-def fetch_all_completed_issues() -> List[JiraIssue]:
+def fetch_all_completed_issues(board_id) -> List[JiraIssue]:
     pager = CheckTotalPager(
         url=(
             JIRA_BASEURL +
-            f'/1.0/board/{TRADING_BOARD}/issue/?expand=changelog&maxResults=50'),
+            f'/1.0/board/{board_id}/issue/?expand=changelog&maxResults=50'),
         items_key='issues',
         data_constructor=issues_with_full_metrics)
     return pager.fetch_all()
-
-
 
 
 def fetch_closed_sprint_urls(board_id) -> List[str]:
@@ -177,7 +173,7 @@ def fetch_sprint_issues(board_id, sprint_id):
 
     pager = CheckTotalPagerWithSubRequests(
         url=JIRA_BASEURL + (
-            f'/1.0/board/{TRADING_BOARD}/sprint/{sprint_id}/issue?maxResults=50&expand=changelog'),
+            f'/1.0/board/{board_id}/sprint/{sprint_id}/issue?maxResults=50&expand=changelog'),
         items_key='issues',
         data_constructor=constructor)
     return pager.fetch_all()
