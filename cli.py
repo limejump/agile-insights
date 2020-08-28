@@ -32,7 +32,7 @@ def issues():
     for (board_id, data_folder) in JIRA_HISTORIC_SOURCE_SINK:
         data = fetch_all_completed_issues(board_id)
         with open(join(here, data_folder,
-                'all-issues.json'), 'w') as f:
+                  'all-issues.json'), 'w') as f:
             json.dump(list(chain(*[d.to_json() for d in data])), f, indent=2)
 
 
