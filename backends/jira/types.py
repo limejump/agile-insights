@@ -32,6 +32,8 @@ class JiraEnumMeta(EnumMeta):
         # a cx specific column
         if 'qa' in lower_no_spaces:
             lower_no_spaces = 'qa'
+        if 'inmaster' in lower_no_spaces:
+            lower_no_spaces = 'qa'  # FIXME: ??
         if 'techdebt' in lower_no_spaces:
             lower_no_spaces = 'techdebt'
         if 'done' in lower_no_spaces:
