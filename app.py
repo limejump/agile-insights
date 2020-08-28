@@ -4,7 +4,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 from os import listdir
-from os.path import join, isfile, split
+from os.path import join
 import pandas as pd
 
 from config import FOLDERS
