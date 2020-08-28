@@ -95,6 +95,8 @@ class Forecast:
 
 
 class Sprint:
+    empty_pie = go.Pie(labels=[], values=[], scalegroup='one')
+
     def __init__(self, data_filepath):
         with open(data_filepath) as f:
             data = json.load(f)
@@ -111,6 +113,10 @@ class Sprint:
 
     def _mk_sub_pie_trace(self, df_filters):
         filtered = self.issues_df[df_filters]
+
+        if filtered.empty:
+            return self.empty_pie
+
         pie = px.pie(
             filtered.groupby('label').size().reset_index(
                 name='issue_count'),
