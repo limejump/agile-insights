@@ -4,10 +4,9 @@ import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Optional
 
-from .types import (
+from .parse import (
     IssueTypes, JiraIssue, Sprint,
-    StatusTypes, IntermediateParser
-)
+    StatusTypes, parse_issue)
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
 MY_TOKEN = 'eVDgTL8kVgdXFaiJtbCF4001'
@@ -116,8 +115,7 @@ def measurable_issue(issue: JiraIssue) -> bool:
 
 
 def issues_with_full_metrics(issue_json: dict) -> Optional[JiraIssue]:
-    issue = JiraIssue.from_parsed_json(
-        IntermediateParser().parse(issue_json))
+    issue = parse_issue(issue_json)
     if measurable_issue(issue) and issue.status == StatusTypes.done:
         return issue
 
@@ -165,17 +163,11 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
 
 
 def fetch_sprint_issues(board_id, sprint_id):
-    parser = IntermediateParser()
-
-    def constructor(issue_json, fetch_func):
-        parsed_json = parser.parse(issue_json)
-        return JiraIssue.from_parsed_json(parsed_json, fetch_func)
-
     pager = CheckTotalPagerWithSubRequests(
         url=JIRA_BASEURL + (
             f'/1.0/board/{board_id}/sprint/{sprint_id}/issue?maxResults=50&expand=changelog'),
         items_key='issues',
-        data_constructor=constructor)
+        data_constructor=parse_issue)
     return pager.fetch_all()
 
 

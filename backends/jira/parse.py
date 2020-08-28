@@ -2,17 +2,97 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import EnumMeta, Enum, auto
 from functools import partial
 from itertools import chain
 from typing import Any, Callable, List, Optional, Tuple
 from re import findall
-from enum import EnumMeta, Enum, auto
 
 
-JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
-TRADING_BOARD = 140
 TIMEFORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
+
+
+def parse_issue(
+        issue_json: dict, subtask_fetcher: Optional[Callable] = None
+        ) -> JiraIssue:
+    return JiraIssue.from_parsed_json(
+        intermediate_parse(issue_json), subtask_fetcher)
+
+
+def intermediate_parse(issue_json):
+    subtask_refs = [
+        subtask['self'] for subtask in issue_json['fields']['subtasks']]
+    status_history, sprint_history = _parse_changelog(
+        issue_json['changelog'])
+    parent = issue_json['fields'].get('parent')
+    if parent and IssueTypes[
+            parent['fields']['issuetype']['name']] == IssueTypes.epic:
+        epic = parent['fields']['summary']
+    else:
+        epic = None
+    intermediate = {
+        "name": issue_json['key'],
+        "summary": issue_json['fields']['summary'],
+        "epic": epic,
+        "type": IssueTypes[
+            issue_json['fields']['issuetype']['name']],
+        "status": StatusTypes[
+            issue_json['fields']['status']['name']],
+        "story_points": issue_json['fields']['customfield_11638'],
+        "subtasks": subtask_refs,
+        "status_history": status_history,
+        "sprint_history": sprint_history}
+    return intermediate
+
+
+def _parse_changelog(history_json: dict) -> Tuple[List, List]:
+    status_history = []
+    sprint_history = []
+    for h in history_json['histories']:
+        sh: dict[str, Any] = {
+            'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
+        sp: dict[str, Any] = {
+            'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
+        for i in h['items']:
+            if 'fieldId' in i and i['fieldId'] == 'status':
+                sh['from'] = maybe_status(i['fromString'])
+                sh['to'] = maybe_status(i['toString'])
+                status_history.append(sh)
+            if i['field'] == 'Sprint':
+                sp.update(_parse_sprint_change(i))
+                sprint_history.append(sp)
+    status_history.sort(key=lambda x: x['timestamp'])
+    sprint_history.sort(key=lambda x: x['timestamp'])
+    return status_history, sprint_history
+
+
+def _parse_sprint_change(sprint_field: dict) -> dict:
+    # some muppet thought that it would be a good ideas to store the
+    # sprint change lists as comma separated strings.
+    items_re = partial(findall, r'[^,\s][^\,]*[^,\s]*')
+    return {
+        "from": set(map(int, items_re(sprint_field['from']))),
+        "to": set(map(int, items_re(sprint_field['to'])))}
+
+
+def maybe_status(json_val: str) -> Optional[StatusTypes]:
+    try:
+        status = StatusTypes[json_val]
+    except KeyError:
+        print(f"Rejected Status Val: {json_val}")
+    else:
+        return status
+
+
+def maybe_timestring(time: Optional[datetime]) -> Optional[str]:
+    if time is not None:
+        return datetime.strftime(time, TIMEFORMAT)
+
+
+def maybe_datetime(time: Optional[str]) -> Optional[datetime]:
+    if time is not None:
+        return datetime.strptime(time, TIMEFORMAT)
 
 
 class JiraEnumMeta(EnumMeta):
@@ -66,81 +146,6 @@ class StatusTypes(JiraEnum):
     codereview = auto()
     blocked = auto()
     qa = auto()
-
-
-def maybe_status(json_val: str) -> Optional[StatusTypes]:
-    try:
-        status = StatusTypes[json_val]
-    except KeyError:
-        print(f"Rejected Status Val: {json_val}")
-    else:
-        return status
-
-
-def formatted_time_or_none(time) -> Optional[str]:
-    if time is not None:
-        return datetime.strftime(time, TIMEFORMAT)
-
-
-def parsed_time_or_none(time) -> Optional[datetime]:
-    if time is not None:
-        return datetime.strptime(time, TIMEFORMAT)
-
-
-class IntermediateParser:
-    def parse(self, issue_json):
-        subtask_refs = [
-            subtask['self'] for subtask in issue_json['fields']['subtasks']]
-        status_history, sprint_history = self._parse_changelog(
-            issue_json['changelog'])
-        parent = issue_json['fields'].get('parent')
-        if parent and IssueTypes[
-                parent['fields']['issuetype']['name']] == IssueTypes.epic:
-            epic = parent['fields']['summary']
-        else:
-            epic = None
-        intermediate = {
-            "name": issue_json['key'],
-            "summary": issue_json['fields']['summary'],
-            "epic": epic,
-            "type": IssueTypes[
-                issue_json['fields']['issuetype']['name']],
-            "status": StatusTypes[
-                issue_json['fields']['status']['name']],
-            "story_points": issue_json['fields']['customfield_11638'],
-            "subtasks": subtask_refs,
-            "status_history": status_history,
-            "sprint_history": sprint_history}
-        return intermediate
-
-    def _parse_changelog(self, history_json: dict) -> Tuple[List, List]:
-        status_history = []
-        sprint_history = []
-        for h in history_json['histories']:
-            sh: dict[str, Any] = {
-                'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
-            sp: dict[str, Any] = {
-                'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
-            for i in h['items']:
-                if 'fieldId' in i and i['fieldId'] == 'status':
-                    sh['from'] = maybe_status(i['fromString'])
-                    sh['to'] = maybe_status(i['toString'])
-                    status_history.append(sh)
-                if i['field'] == 'Sprint':
-                    sp.update(self._parse_sprint_change(i))
-                    sprint_history.append(sp)
-        status_history.sort(key=lambda x: x['timestamp'])
-        sprint_history.sort(key=lambda x: x['timestamp'])
-        return status_history, sprint_history
-
-    @staticmethod
-    def _parse_sprint_change(sprint_field: dict) -> dict:
-        # some muppet thought that it would be a good ideas to store the
-        # sprint change lists as comma separated strings.
-        items_re = partial(findall, r'[^,\s][^\,]*[^,\s]*')
-        return {
-            "from": set(map(int, items_re(sprint_field['from']))),
-            "to": set(map(int, items_re(sprint_field['to'])))}
 
 
 @dataclass
@@ -245,11 +250,8 @@ class JiraIssue:
     @staticmethod
     def fetch_subtasks(
             fetcher: Callable, subtask_refs: List[str]) -> List[JiraIssue]:
-        parser = IntermediateParser()
         return [
-            JiraIssue.from_parsed_json(
-                parser.parse(
-                    fetcher(ref + '?expand=changelog')))
+            parse_issue(fetcher(ref + '?expand=changelog'))
             for ref in subtask_refs]
 
     def to_json(self) -> List[dict]:
@@ -262,8 +264,8 @@ class JiraIssue:
             "story_points": self.story_points,
             "started": self.status_metrics.started,
             "finished": self.status_metrics.finished,
-            "start_time": formatted_time_or_none(self.status_metrics.start),
-            "end_time": formatted_time_or_none(self.status_metrics.end),
+            "start_time": maybe_timestring(self.status_metrics.start),
+            "end_time": maybe_timestring(self.status_metrics.end),
             "days_taken": self.status_metrics.days_taken,
             "label": self.label
         }]
@@ -299,7 +301,7 @@ class Sprint:
             start=datetime.strptime(
                 sprint_json['startDate'], TIMEFORMAT),
             end=(
-                parsed_time_or_none(sprint_json.get('completeDate')) or
+                maybe_datetime(sprint_json.get('completeDate')) or
                 datetime.strptime(sprint_json['endDate'], TIMEFORMAT)))
 
         if issues_fetcher:
@@ -315,8 +317,8 @@ class Sprint:
             "name": self.name,
             "goal": self.goal,
             "state": self.state,
-            "start": formatted_time_or_none(self.start),
-            "end": formatted_time_or_none(self.end),
+            "start": maybe_timestring(self.start),
+            "end": maybe_timestring(self.end),
             "issues": issues}
 
     def _issue_to_json(self, issue: JiraIssue) -> List[dict]:

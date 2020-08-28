@@ -1,4 +1,4 @@
-from .types import JiraIssue, DUMPFORMAT
+from .parse import JiraIssue, DUMPFORMAT
 from .fetch import (
     fetch_all_completed_issues,
     fetch_sprints,
