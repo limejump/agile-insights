@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from itertools import chain
-from typing import Callable, NamedTuple, List, Optional, Set, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 from re import findall
 from enum import EnumMeta, Enum, auto
 
@@ -117,8 +117,10 @@ class IntermediateParser:
         status_history = []
         sprint_history = []
         for h in history_json['histories']:
-            sh = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
-            sp = {'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
+            sh: dict[str, Any] = {
+                'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
+            sp: dict[str, Any] = {
+                'timestamp': datetime.strptime(h['created'], TIMEFORMAT)}
             for i in h['items']:
                 if 'fieldId' in i and i['fieldId'] == 'status':
                     sh['from'] = maybe_status(i['fromString'])
