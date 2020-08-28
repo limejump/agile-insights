@@ -157,7 +157,9 @@ class Sprint:
             1, 4, specs=[[
                 {'type': 'domain'}, {'type': 'domain'},
                 {'type': 'domain'}, {'type': 'domain'}]],
-            subplot_titles=['Planned','Planned Delivered', 'Unplanned', 'Unplanned Delivered'])
+            subplot_titles=[
+                'Planned', 'Planned Delivered',
+                'Unplanned', 'Unplanned Delivered'])
         fig.add_trace(
             self._mk_sub_pie_trace(
                 df_filters=self.issues_df.planned.eq(True)),
