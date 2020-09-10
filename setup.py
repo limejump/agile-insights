@@ -18,4 +18,10 @@ setuptools.setup(
         'requests',
         'pandas'
     ],
+    extras_require={
+        'test': [
+            'pytest',
+            'lenses'
+        ]
+    }
 )
