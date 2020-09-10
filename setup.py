@@ -1,12 +1,14 @@
 import setuptools
 
 setuptools.setup(
-    name="kanban-forecast-etl",
+    name="scrum-dashboard",
     version="0.0.1",
     auther="Grahame Gardiner",
     author_email="grahame.gardiner@limejump.com",
     description=(
-        "A script for fetching kanban board data pertinent to forecasting"),
+        "An ETL for fetching scrum board data pertinent to forecasting "
+        "And a dashboard for presenting it."
+        ),
     packages=setuptools.find_packages(),
     install_requires=[
         'arrow',
