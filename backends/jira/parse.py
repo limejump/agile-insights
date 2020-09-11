@@ -206,6 +206,33 @@ class SprintMetrics:
         return cls(sprint_additions)
 
 
+class ParentGetter:
+    ''' This is really just a function that returns a Subtasks
+        parent Issue.
+
+        The complication comes when making this testable.
+
+        If you keep a direct reference to the parent in the subtask, you
+        create recursive structures, so == comparison hits recursion depth.
+        So I had the "genius" idea of simply attaching a getter rather than
+        direct reference. The natural thing to use is a lambda, but you can't
+        because the lambda you compare with in the tests is different
+        (not equivalent) to the one the parser generates.
+
+        Hence we're left with this
+    '''
+    def __init__(self, issue):
+        self.issue = issue
+
+    def __call__(self):
+        return self.issue
+
+    def __eq__(self, other):
+        # issue.name is something like TRAD-411, so any getter that returns
+        # an issue for that name should compare equal
+        return self.issue.name == other.issue.name
+
+
 @dataclass
 class JiraIssue:
     name: str
@@ -217,7 +244,7 @@ class JiraIssue:
     subtasks: List[JiraIssue]
     status_metrics: StatusMetrics
     sprint_metrics: SprintMetrics
-    parent_issue: Optional[JiraIssue] = None
+    get_parent_issue: Optional[ParentGetter] = None
 
     @classmethod
     def from_parsed_json(
@@ -242,7 +269,7 @@ class JiraIssue:
                 intermediate['sprint_history']))
         if issue.subtasks:
             for subtask in issue.subtasks:
-                subtask.parent_issue = issue
+                subtask.get_parent_issue = ParentGetter(issue)
                 subtask.epic = issue.epic
                 subtask.sprint_metrics = issue.sprint_metrics
         return issue
@@ -272,8 +299,8 @@ class JiraIssue:
 
     @property
     def label(self):
-        if self.parent_issue:
-            parent_label = self.parent_issue.label
+        if self.get_parent_issue:
+            parent_label = self.get_parent_issue().label
         else:
             parent_label = None
         return self.epic or parent_label or self.summary or "No Label"
