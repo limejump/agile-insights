@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from lenses import lens
 
 from backends.jira.parse import (
+    ParentGetter,
     JiraIssue, SprintMetrics, StatusMetrics, StatusTypes, IssueTypes,
     intermediate_parse, parse_issue)
 
@@ -84,7 +85,7 @@ def basic_scenario():
                 end=None,
                 days_taken=None),
             sprint_metrics=SprintMetrics(sprint_additions=[]),
-            parent_issue=None)
+            get_parent_issue=None)
     )
 
 
@@ -304,5 +305,119 @@ def test_sprint_history_removal(basic_scenario, sprint_history_lenses):
     assert parse_issue(raw_json) == final
 
 
-def test_issue_with_subtasks(basic_scenario):
-    pass
+def mock_subtask_fetcher(url):
+    # id_ = url.split('/')[-1]
+    return {
+            # "id": id_,
+            "key": "A subtask",
+            "changelog": {"histories": []},
+            "fields": {
+                "epic": None,
+                "labels": [],
+                "status": {"name": "To Do"},
+                "subtasks": [],
+                "issuetype": {"name": "Subtask"},
+                "customfield_11638": 2.0,
+                "summary": "Test some of the things"
+            }
+        }
+
+
+@pytest.fixture
+def subtask_scenario():
+    task = JiraIssue(
+        name="EXAMPLE-1",
+        summary="Test all the things",
+        epic=None,
+        type_=IssueTypes.task,
+        status=StatusTypes.todo,
+        story_points=5.0,
+        subtasks=[],
+        status_metrics=StatusMetrics(
+            started=False,
+            finished=False,
+            start=None,
+            end=None,
+            days_taken=None),
+        sprint_metrics=SprintMetrics(sprint_additions=[]),
+        get_parent_issue=None)
+    task.subtasks = [
+        JiraIssue(
+            name="A subtask",
+            summary="Test some of the things",
+            epic=None,
+            type_=IssueTypes.subtask,
+            status=StatusTypes.todo,
+            story_points=2.0,
+            subtasks=[],
+            status_metrics=StatusMetrics(
+                started=False,
+                finished=False,
+                start=None,
+                end=None,
+                days_taken=None),
+            sprint_metrics=SprintMetrics(sprint_additions=[]),
+            get_parent_issue=ParentGetter(task)),
+        JiraIssue(
+            name="A subtask",
+            summary="Test some of the things",
+            epic=None,
+            type_=IssueTypes.subtask,
+            status=StatusTypes.todo,
+            story_points=2.0,
+            subtasks=[],
+            status_metrics=StatusMetrics(
+                started=False,
+                finished=False,
+                start=None,
+                end=None,
+                days_taken=None),
+            sprint_metrics=SprintMetrics(sprint_additions=[]),
+            get_parent_issue=ParentGetter(task)),
+    ]
+    return (
+        {
+            "id": "1",
+            "key": "EXAMPLE-1",
+            "changelog": {"histories": []},
+            "fields": {
+                "epic": None,
+                "labels": [],
+                "status": {"name": "To Do"},
+                "subtasks": [
+                    {
+                        "id": 2,
+                        "self": "https://path/to/issue/2"
+                    },
+                    {
+                        "id": 3,
+                        "self": "https://path/to/issue/3"
+                    },
+                ],
+                "issuetype": {"name": "Task"},
+                "customfield_11638": 5.0,
+                "summary": "Test all the things"
+            }
+        },
+        {
+            "name": "EXAMPLE-1",
+            "summary": "Test all the things",
+            "epic": None,
+            "type": IssueTypes.task,
+            "status": StatusTypes.todo,
+            "story_points": 5.0,
+            "subtasks": [
+                "https://path/to/issue/2",
+                "https://path/to/issue/3",
+            ],
+            "status_history": [],
+            "sprint_history": []
+        },
+        task
+    )
+
+
+def test_issue_with_subtasks(subtask_scenario):
+    raw_json, intermediate, final = subtask_scenario
+    assert intermediate_parse(raw_json) == intermediate
+    assert parse_issue(raw_json, mock_subtask_fetcher) == final
