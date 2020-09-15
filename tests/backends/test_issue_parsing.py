@@ -50,7 +50,6 @@ def basic_scenario():
             "key": "EXAMPLE-1",
             "changelog": {"histories": []},
             "fields": {
-                "epic": None,
                 "labels": [],
                 "status": {"name": "To Do"},
                 "subtasks": [],
@@ -312,7 +311,6 @@ def mock_subtask_fetcher(url):
             "key": "A subtask",
             "changelog": {"histories": []},
             "fields": {
-                "epic": None,
                 "labels": [],
                 "status": {"name": "To Do"},
                 "subtasks": [],
@@ -328,7 +326,7 @@ def subtask_scenario():
     task = JiraIssue(
         name="EXAMPLE-1",
         summary="Test all the things",
-        epic=None,
+        epic="An Epic",
         type_=IssueTypes.task,
         status=StatusTypes.todo,
         story_points=5.0,
@@ -345,7 +343,7 @@ def subtask_scenario():
         JiraIssue(
             name="A subtask",
             summary="Test some of the things",
-            epic=None,
+            epic="An Epic",
             type_=IssueTypes.subtask,
             status=StatusTypes.todo,
             story_points=2.0,
@@ -361,7 +359,7 @@ def subtask_scenario():
         JiraIssue(
             name="A subtask",
             summary="Test some of the things",
-            epic=None,
+            epic="An Epic",
             type_=IssueTypes.subtask,
             status=StatusTypes.todo,
             story_points=2.0,
@@ -381,7 +379,12 @@ def subtask_scenario():
             "key": "EXAMPLE-1",
             "changelog": {"histories": []},
             "fields": {
-                "epic": None,
+                "parent": {
+                    "fields": {
+                        "issuetype": {"name": "epic"},
+                        "summary": "An Epic"
+                    }
+                },
                 "labels": [],
                 "status": {"name": "To Do"},
                 "subtasks": [
@@ -402,7 +405,7 @@ def subtask_scenario():
         {
             "name": "EXAMPLE-1",
             "summary": "Test all the things",
-            "epic": None,
+            "epic": "An Epic",
             "type": IssueTypes.task,
             "status": StatusTypes.todo,
             "story_points": 5.0,
@@ -421,3 +424,53 @@ def test_issue_with_subtasks(subtask_scenario):
     raw_json, intermediate, final = subtask_scenario
     assert intermediate_parse(raw_json) == intermediate
     assert parse_issue(raw_json, mock_subtask_fetcher) == final
+
+
+@pytest.fixture
+def subtask_lenses():
+    return LensCollection(
+        None,
+        None,
+        lens.subtasks)
+
+
+def test_subtasks_inherit_from_parent(
+        subtask_scenario, subtask_lenses, sprint_history_lenses):
+    raw_json, intermediate, final = subtask_scenario
+    raw_json = sprint_history_lenses.raw.set([
+        {
+            "created": "2020-01-01T11:00:00.000+0100",
+            "items": [
+                {
+                    "field": "Sprint",
+                    "from": "1",
+                    "to": "1, 2",
+                }
+            ]
+        },
+    ])(raw_json)
+    intermediate = sprint_history_lenses.intermediate.set([
+        {
+            "timestamp": datetime(
+                2020, 1, 1, 11, 0, 0, tzinfo=timezone(timedelta(hours=1))),
+            "from": {1},
+            "to": {1, 2}
+        }
+    ])(intermediate)
+    sprint_metrics = SprintMetrics(sprint_additions=[
+            {
+                "timestamp": datetime(
+                    2020, 1, 1, 11, 0, 0, tzinfo=timezone(timedelta(hours=1))),
+                "sprint_id": 2
+            }
+        ])
+    final = sprint_history_lenses.final.set(sprint_metrics)(final)
+    # Subtasks inherit their SprintMetrics from their parent
+    # because the parent is the entity that you can physical move between
+    # sprints.
+    final = subtask_lenses.final.Each().modify(
+        lambda subtask: sprint_history_lenses.final.set(
+            sprint_metrics)(subtask))(final)
+    assert parse_issue(raw_json, mock_subtask_fetcher) == final
+    assert final.subtasks[0].label == final.label != None
+    assert final.subtasks[0].epic == final.epic != None
