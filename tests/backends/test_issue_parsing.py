@@ -9,7 +9,7 @@ from backends.jira.parse import (
     JiraIssue, SprintMetrics, StatusMetrics, StatusTypes, IssueTypes,
     intermediate_parse, parse_issue)
 
-
+# FIXME: Duplication
 LensCollection = namedtuple(
     'LensCollection', ('raw', 'intermediate', 'final'))
 

@@ -2,6 +2,7 @@ import pytest
 from collections import namedtuple
 from lenses import lens
 
+# FIXME: duplication
 LensCollection = namedtuple(
     'LensCollection', ('raw', 'intermediate', 'final'))
 
