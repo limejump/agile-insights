@@ -468,9 +468,10 @@ def test_subtasks_inherit_from_parent(
     # Subtasks inherit their SprintMetrics from their parent
     # because the parent is the entity that you can physical move between
     # sprints.
-    final = subtask_lenses.final.Each().modify(
-        lambda subtask: sprint_history_lenses.final.set(
-            sprint_metrics)(subtask))(final)
+    final = (
+        subtask_lenses.final.Each() &
+        sprint_history_lenses.final
+    ).set(sprint_metrics)(final)
     assert parse_issue(raw_json, mock_subtask_fetcher) == final
     assert final.subtasks[0].label == final.label != None
     assert final.subtasks[0].epic == final.epic != None
