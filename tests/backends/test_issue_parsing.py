@@ -33,16 +33,6 @@ def status_lenses():
 
 
 @pytest.fixture
-def sprint_history_lenses():
-    sprint = LensCollection(
-        lens['changelog']['histories'],
-        lens['sprint_history'],
-        lens.sprint_metrics
-    )
-    return sprint
-
-
-@pytest.fixture
 def basic_scenario():
     return (
         {
