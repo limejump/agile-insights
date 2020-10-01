@@ -1,4 +1,5 @@
 from __future__ import annotations
+from abc import abstractmethod
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -100,25 +101,9 @@ class JiraEnumMeta(EnumMeta):
         return super().__getitem__(cls.canonicalize_name(name))
 
     @staticmethod
+    @abstractmethod
     def canonicalize_name(name: str) -> str:
-        # FIXME: this caters for both Status and Issue types
-        # they ought to be separated to reduce confusion
-        mappings = {
-            'underreview': 'codereview',
-            'refactor': 'techdebt'
-        }
-        lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
-        mapped = mappings.get(lower_no_spaces)
-        # a cx specific column
-        if 'qa' in lower_no_spaces:
-            lower_no_spaces = 'qa'
-        if 'inmaster' in lower_no_spaces:
-            lower_no_spaces = 'qa'  # FIXME: ??
-        if 'techdebt' in lower_no_spaces:
-            lower_no_spaces = 'techdebt'
-        if 'done' in lower_no_spaces:
-            lower_no_spaces = 'done'
-        return mapped or lower_no_spaces
+        raise NotImplementedError
 
 
 class JiraEnum(Enum, metaclass=JiraEnumMeta):
@@ -138,6 +123,19 @@ class IssueTypes(JiraEnum):
     techdebt = auto()
     feature = auto()
 
+    @staticmethod
+    def canonicalize_name(name):
+        mappings = {
+            'refactor': 'techdebt'
+        }
+        lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
+        mapped = mappings.get(lower_no_spaces)
+
+        if 'techdebt' in lower_no_spaces:
+            lower_no_spaces = 'techdebt'
+
+        return mapped or lower_no_spaces
+
 
 class StatusTypes(JiraEnum):
     todo = auto()
@@ -146,6 +144,24 @@ class StatusTypes(JiraEnum):
     codereview = auto()
     blocked = auto()
     qa = auto()
+
+    @staticmethod
+    def canonicalize_name(name):
+        # FIXME: this caters for both Status and Issue types
+        # they ought to be separated to reduce confusion
+        mappings = {
+            'underreview': 'codereview',
+        }
+        lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
+        mapped = mappings.get(lower_no_spaces)
+        # a cx specific column
+        if 'qa' in lower_no_spaces:
+            lower_no_spaces = 'qa'
+        if 'inmaster' in lower_no_spaces:
+            lower_no_spaces = 'qa'  # FIXME: ??
+        if 'done' in lower_no_spaces:
+            lower_no_spaces = 'done'
+        return mapped or lower_no_spaces
 
 
 @dataclass
