@@ -373,7 +373,7 @@ class Sprint:
             time_added = added_to_this_sprint.pop()['timestamp']
             return time_added <= self.start
         else:
-            # TODO: assume unplanned if we have no sprint metrics
+            # TODO: assume unplanned if we have no sprint metrics?
             return False
 
     def started_in_sprint(self, issue: JiraIssue) -> bool:
@@ -382,7 +382,7 @@ class Sprint:
         started_in_sprint = (
             started and bool(start_time) and
             self.start <= start_time <= self.end)
-        # FIXME: Sometimes tockets move straight from ToDo to Done
+        # FIXME: Sometimes tickets move straight from ToDo to Done
         # i.e. finished before they started
         return started_in_sprint or self.finished_in_sprint(issue)
 
