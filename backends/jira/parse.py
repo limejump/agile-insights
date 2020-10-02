@@ -103,6 +103,9 @@ class JiraEnumMeta(EnumMeta):
     @staticmethod
     @abstractmethod
     def canonicalize_name(name: str) -> str:
+        # Because people love coming up with custom status and
+        # issue types. In the concrete Enum classes below I have
+        # made some guesses to attempt to normalise some of this.
         raise NotImplementedError
 
 
@@ -147,8 +150,6 @@ class StatusTypes(JiraEnum):
 
     @staticmethod
     def canonicalize_name(name):
-        # FIXME: this caters for both Status and Issue types
-        # they ought to be separated to reduce confusion
         mappings = {
             'underreview': 'codereview',
         }
