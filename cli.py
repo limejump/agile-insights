@@ -11,7 +11,8 @@ from backends.jira import (
 
 from config import (
     JIRA_SPRINTS_SOURCE_SINK,
-    JIRA_HISTORIC_SOURCE_SINK)
+    JIRA_HISTORIC_SOURCE_SINK,
+    config)
 
 here = abspath(dirname(__file__))
 data_dir = join(here, 'datasets')
@@ -28,7 +29,10 @@ def extract():
 
 
 @extract.command()
-def issues():
+@click.argument('--access-token', envvar='TOKEN')
+def issues(access_token):
+    config.set('jira', access_token)
+
     for (board_id, data_folder) in JIRA_HISTORIC_SOURCE_SINK:
         data = fetch_all_completed_issues(board_id)
         with open(join(here, data_folder,
@@ -42,7 +46,10 @@ def sprints():
 
 
 @sprints.command()
-def latest():
+@click.argument('access-token', envvar='TOKEN')
+def latest(access_token):
+    config.set('jira', access_token)
+
     for (board_id, data_folder) in JIRA_SPRINTS_SOURCE_SINK:
         data = fetch_sprints(board_id)
         for sprint_data in data:

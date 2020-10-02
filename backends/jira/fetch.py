@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import partial
+from attr import dataclass
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Optional
@@ -8,16 +9,28 @@ from .parse import (
     IssueTypes, JiraIssue, Sprint,
     StatusTypes, parse_issue)
 
+from config import config, configclass
+
+
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
-MY_TOKEN = 'eVDgTL8kVgdXFaiJtbCF4001'
 DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
 ALL_ISSUES_FILENAME = 'jira-all-issues.json'
 
 
-class JiraPager(ABC):
-    auth = HTTPBasicAuth("grahame.gardiner@limejump.com", MY_TOKEN)
+@configclass
+@dataclass
+class JiraConfig:
+    access_token: str
 
+
+config.register('jira', JiraConfig)
+
+
+class JiraPager(ABC):
     def __init__(self, url, items_key, data_constructor):
+        self.auth = HTTPBasicAuth(
+            "grahame.gardiner@limejump.com",
+            config.get('jira').access_token)
         self.url = url
         self.items_key = items_key
         self.data_constructor = data_constructor
@@ -154,7 +167,8 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
         Sprint.from_parsed_json(
             requests.get(
                 url, auth=HTTPBasicAuth(
-                    "grahame.gardiner@limejump.com", MY_TOKEN)
+                    "grahame.gardiner@limejump.com",
+                    config.get('jira').access_token)
             ).json(), issues_fetcher=partial(
                 fetch_sprint_issues, board_id))
         for url in closed_sprint_urls[-past:]
