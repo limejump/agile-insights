@@ -357,7 +357,7 @@ class Sprint:
         issues = list(
             chain(*[self._issue_to_json(i) for i in self.issues]))
         return {
-            "id": self.id_,
+            "_id": self.id_,
             "name": self.name,
             "goal": self.goal,
             "state": self.state,
