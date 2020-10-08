@@ -179,7 +179,8 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
 def fetch_sprint_issues(board_id, sprint_id):
     pager = CheckTotalPagerWithSubRequests(
         url=JIRA_BASEURL + (
-            f'/1.0/board/{board_id}/sprint/{sprint_id}/issue?maxResults=50&expand=changelog'),
+            f'/1.0/board/{board_id}/sprint/{sprint_id}'
+            '/issue?maxResults=50&expand=changelog'),
         items_key='issues',
         data_constructor=parse_issue)
     return pager.fetch_all()
