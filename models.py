@@ -1,9 +1,25 @@
 import json
+from os import environ
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import random
+
+from config import config
+from database.mongo import Client
+
+
+config.set(
+    'db',
+    environ.get('DB_HOST', 'localhost'),
+    int(environ.get('DB_PORT', 27017)),
+    environ.get('DB_USERNAME', 'root'),
+    environ.get('DB_PASSWORD', 'rootpassword'),
+    )
+
+
+db_client = Client()
 
 
 class Forecast:
@@ -97,11 +113,10 @@ class Forecast:
 class Sprint:
     empty_pie = go.Pie(labels=[], values=[], scalegroup='one')
 
-    def __init__(self, data_filepath):
-        with open(data_filepath) as f:
-            data = json.load(f)
-        self._data = data
-        self.issues_df = pd.DataFrame.from_records(data['issues'])
+    def __init__(self, team_name):
+        self._data = db_client.get_latest_sprint(team_name)
+        self.issues_df = pd.DataFrame.from_records(
+            self._data['issues'])
 
     @property
     def name(self):

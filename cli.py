@@ -12,9 +12,10 @@ from backends.jira import (
     fetch_all_completed_issues, fetch_sprints)
 
 from config import (
-    JIRA_SPRINTS_SOURCE_SINK,
     JIRA_HISTORIC_SOURCE_SINK,
     config)
+
+from database.mongo import Client
 
 here = abspath(dirname(__file__))
 data_dir = join(here, 'datasets')
@@ -38,7 +39,7 @@ def extract():
 
 
 @extract.command()
-@click.argument('--access-token', envvar='TOKEN')
+@click.argument('access-token', envvar='TOKEN')
 def issues(access_token):
     config.set('jira', access_token)
 
@@ -56,17 +57,19 @@ def sprints():
 
 @sprints.command()
 @click.argument('access-token', envvar='TOKEN')
-def latest(access_token):
+@click.argument('db-host', envvar='DB_HOST', default='localhost')
+@click.argument('db-port', envvar='DB_PORT', type=int, default=27017)
+@click.argument('db-username', envvar='DB_USERNAME', default='root')
+@click.argument('db-password', envvar='DB_PASSWORD', default='rootpassword')
+def latest(access_token, db_host, db_port, db_username, db_password):
     config.set('jira', access_token)
+    config.set('db', db_host, db_port, db_username, db_password)
+    db_client = Client()
 
-    for (board_id, data_folder) in JIRA_SPRINTS_SOURCE_SINK:
-        data = fetch_sprints(board_id)
+    for team in config.get('static').teams:
+        data = fetch_sprints(team.board_id)
         for sprint_data in data:
-            with open(join(
-                here, data_folder,
-                f"{sprint_data['id']}-{sprint_data['name'].replace(' ', '_')}.json")
-                    , 'w') as f:
-                json.dump(sprint_data, f, indent=2)
+            db_client.add_sprint(team.name, sprint_data)
 
 
 @cli.group()

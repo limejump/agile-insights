@@ -3,12 +3,12 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from os import listdir
 from os.path import join
 import pandas as pd
 
-from config import FOLDERS
+from config import FOLDERS, config
 from models import Forecast, Sprint
+
 
 pd.options.mode.chained_assignment = None
 
@@ -19,8 +19,8 @@ app = dash.Dash(
 
 
 team_data_options = [
-    {"label": team, "value": team}
-    for team in ['cx', 'billing', 'trading']]
+    {"label": team.name, "value": team.name}
+    for team in config.get('static').teams]
 
 url_bar_and_content_div = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -91,7 +91,7 @@ def display_page(pathname):
     Output('planned-unplanned', 'figure'),
     [Input(component_id="team-picker", component_property="value")])
 def change_planned_graph(team_name):
-    sprint = Sprint(latest_sprint_file(team_name))
+    sprint = Sprint(team_name)
     fig = sprint.mk_summary_table()
     # fig.update_layout(transition_duration=500)
     return fig
@@ -101,7 +101,7 @@ def change_planned_graph(team_name):
     Output('breakdown', 'figure'),
     [Input(component_id="team-picker", component_property="value")])
 def change_breakdown_graph(team_name):
-    sprint = Sprint(latest_sprint_file(team_name))
+    sprint = Sprint(team_name)
     fig = sprint.mk_overview_trace()
     fig.update_layout(transition_duration=500)
     return fig
@@ -128,7 +128,7 @@ def update_estimate_graph(team_name):
     Output('sprints', 'children'),
     [Input(component_id="team-picker", component_property="value")])
 def change_heading(team_name):
-    sprint = Sprint(latest_sprint_file(team_name))
+    sprint = Sprint(team_name)
     return [
         html.H2(sprint.name),
         html.H4(sprint.goal)
@@ -149,14 +149,6 @@ def run_simulation(num_issues, team_name):
             figure=forecast._run_montecarlo(num_issues))
     else:
         return "..."
-
-
-def latest_sprint_file(team_name):
-    folder = FOLDERS[team_name]['sprint']
-    latest, *_ = reversed(sorted(listdir(folder)))
-    print(listdir(folder))
-    print(latest)
-    return join(folder, latest)
 
 
 if __name__ == '__main__':
