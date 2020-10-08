@@ -1,21 +1,14 @@
+from dataclasses import dataclass
 from os.path import join
+from typing import List
 
 # FIXME: A fair amount of duplication...
 TRADING_BOARD = 140
-TRADING_SPRINT_FOLDER = join('datasets', 'sprints', 'trading')
 TRADING_HISTORIC_FOLDER = join('datasets', 'forecasting', 'trading')
 CX_BOARD = 130
-CX_SPRINT_FOLDER = join('datasets', 'sprints', 'cx')
 CX_HISTORIC_FOLDER = join('datasets', 'forecasting', 'cx')
 BILLING_BOARD = 145
-BILLING_SPRINT_FOLDER = join('datasets', 'sprints', 'datarecs')
 BILLING_HISTORIC_FOLDER = join('datasets', 'forecasting', 'datarecs')
-
-JIRA_SPRINTS_SOURCE_SINK = [
-    (TRADING_BOARD, TRADING_SPRINT_FOLDER),
-    (CX_BOARD, CX_SPRINT_FOLDER),
-    (BILLING_BOARD, BILLING_SPRINT_FOLDER)
-]
 
 JIRA_HISTORIC_SOURCE_SINK = [
     (TRADING_BOARD, TRADING_HISTORIC_FOLDER),
@@ -25,15 +18,12 @@ JIRA_HISTORIC_SOURCE_SINK = [
 
 FOLDERS = {
     'cx': {
-        'sprint': CX_SPRINT_FOLDER,
         'historic': CX_HISTORIC_FOLDER
     },
     'billing': {
-        'sprint': BILLING_SPRINT_FOLDER,
         'historic': BILLING_HISTORIC_FOLDER
     },
     'trading': {
-        'sprint': TRADING_SPRINT_FOLDER,
         'historic': TRADING_HISTORIC_FOLDER
     },
 }
@@ -84,3 +74,25 @@ class Config:
 # config. Then call config.register, passing in the dataclass, to add it
 # to the global store.
 config = Config()
+
+
+@dataclass
+class TeamInfo:
+    name: str
+    board_id: int
+
+
+@configclass
+@dataclass
+class StaticConfig:
+    teams: List[TeamInfo]
+
+
+config.register('static', StaticConfig)
+config.set(
+    'static',
+    [
+        TeamInfo('cx', 130),
+        TeamInfo('dar', 145),
+        TeamInfo('voyager', 140)
+    ])
