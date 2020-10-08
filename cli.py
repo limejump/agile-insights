@@ -3,7 +3,9 @@ from click.types import DateTime
 from datetime import datetime
 from itertools import chain
 import json
+import logging
 from os.path import abspath, join, dirname
+import sys
 
 from backends.jira import (
     ALL_ISSUES_FILENAME, DUMPFORMAT,
@@ -16,6 +18,13 @@ from config import (
 
 here = abspath(dirname(__file__))
 data_dir = join(here, 'datasets')
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ])
 
 
 @click.group()
