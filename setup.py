@@ -15,13 +15,17 @@ setuptools.setup(
         'click',
         'dash',
         'dash-bootstrap-components',
-        'requests',
-        'pandas'
+        'pandas',
+        'pymongo',
+        'requests'
     ],
     extras_require={
         'test': [
             'pytest',
             'lenses'
+        ],
+        'migrate': [
+            'pymongo-migrate'
         ]
     }
 )
