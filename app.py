@@ -3,10 +3,9 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-from os.path import join
 import pandas as pd
 
-from config import FOLDERS, config
+from config import config
 from models import Forecast, Sprint
 
 
@@ -111,9 +110,7 @@ def change_breakdown_graph(team_name):
     Output("forecasts", "children"),
     [Input(component_id="team-picker", component_property="value")])
 def update_estimate_graph(team_name):
-    folder = FOLDERS[team_name]['historic']
-    forecast = Forecast(
-        join(folder, 'all-issues.json'))
+    forecast = Forecast(team_name)
     return [
         dcc.Graph(
             id="story-points",
@@ -140,9 +137,7 @@ def change_heading(team_name):
     [Input("num-issues", "value"),
      Input(component_id="team-picker", component_property="value")])
 def run_simulation(num_issues, team_name):
-    folder = FOLDERS[team_name]['historic']
-    forecast = Forecast(
-        join(folder, 'all-issues.json'))
+    forecast = Forecast(team_name)
     if num_issues:
         return dcc.Graph(
             id="monte-carlo",

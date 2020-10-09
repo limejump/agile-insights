@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from pymongo import MongoClient
+from pymongo import MongoClient, ReplaceOne
 from pymongo.errors import DuplicateKeyError
 import logging
 
@@ -30,6 +30,39 @@ class Client:
             port=conn_info.port,
             username=conn_info.username,
             password=conn_info.password)
+
+    def add_historic_issues(self, team_name, issues):
+        db = self.client.sprints
+        team_id = db.teams.find_one({'name': team_name})['_id']
+
+        if team_id is None:
+            log.error(
+                'Team %s does not exist, check the migrations files'
+                % team_name)
+            return
+
+        for issue in issues:
+            issue['team_id'] = team_id
+
+        # As time goes on issues move in to Done, thus becoming "historic"
+        # We do a replace-upsert to both capture new historic issues and
+        # update the old issues if any changes have been made.
+        replacements = [
+            ReplaceOne({"name": issue['name']}, issue, upsert=True)
+            for issue in issues
+        ]
+        res = db.historic_issues.bulk_write(replacements)
+
+        if res.bulk_api_result['writeErrors']:
+            log.error(res.bulk_api_result['writeErrors'])
+
+        log.info(
+            'Replaced historic issues for %s' % team_name)
+
+    def get_historic_issues(self, team_name):
+        db = self.client.sprints
+        team_id = db.teams.find_one({'name': team_name})['_id']
+        return list(db.historic_issues.find({"team_id": team_id}))
 
     def add_sprint(self, team_name, data):
         db = self.client.sprints

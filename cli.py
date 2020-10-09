@@ -40,14 +40,20 @@ def extract():
 
 @extract.command()
 @click.argument('access-token', envvar='TOKEN')
-def issues(access_token):
+@click.argument('db-host', envvar='DB_HOST', default='localhost')
+@click.argument('db-port', envvar='DB_PORT', type=int, default=27017)
+@click.argument('db-username', envvar='DB_USERNAME', default='root')
+@click.argument('db-password', envvar='DB_PASSWORD', default='rootpassword')
+def issues(access_token, db_host, db_port, db_username, db_password):
     config.set('jira', access_token)
+    config.set('db', db_host, db_port, db_username, db_password)
+    db_client = Client()
 
-    for (board_id, data_folder) in JIRA_HISTORIC_SOURCE_SINK:
-        data = fetch_all_completed_issues(board_id)
-        with open(join(here, data_folder,
-                  'all-issues.json'), 'w') as f:
-            json.dump(list(chain(*[d.to_json() for d in data])), f, indent=2)
+    for team in config.get('static').teams:
+        data = fetch_all_completed_issues(team.board_id)
+        db_client.add_historic_issues(
+            team.name,
+            list(chain(*[d.to_json() for d in data])))
 
 
 @extract.group()

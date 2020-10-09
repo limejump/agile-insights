@@ -1,4 +1,3 @@
-import json
 from os import environ
 import pandas as pd
 import plotly.express as px
@@ -23,10 +22,9 @@ db_client = Client()
 
 
 class Forecast:
-    def __init__(self, data_filepath):
-        with open(data_filepath) as f:
-            data = json.load(f)
-        df = pd.DataFrame.from_records(data)
+    def __init__(self, team_name):
+        self._data = db_client.get_historic_issues(team_name)
+        df = pd.DataFrame.from_records(self._data)
         # FIXME:
         # 1) make the cap configurable?
         # 2) remove top 95%
