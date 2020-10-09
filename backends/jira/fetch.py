@@ -13,8 +13,6 @@ from config import config, configclass
 
 
 JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
-DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
-ALL_ISSUES_FILENAME = 'jira-all-issues.json'
 
 
 @configclass

@@ -11,7 +11,6 @@ from re import findall
 
 
 TIMEFORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
-DUMPFORMAT = "%Y-%m-%dT%H:%M:%S"
 
 
 def parse_issue(
