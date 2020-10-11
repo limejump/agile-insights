@@ -132,10 +132,10 @@ class Sprint:
             return self.empty_pie
 
         pie = px.pie(
-            filtered.groupby('label').size().reset_index(
+            filtered.groupby('description').size().reset_index(
                 name='issue_count'),
             values='issue_count',
-            names='label')
+            names='description')
         # can only make subplots from graph objects
         return go.Pie(
             labels=pie.data[0]['labels'],

@@ -310,16 +310,16 @@ class JiraIssue:
             "start_time": maybe_timestring(self.status_metrics.start),
             "end_time": maybe_timestring(self.status_metrics.end),
             "days_taken": self.status_metrics.days_taken,
-            "label": self.label
+            "description": self.description
         }]
 
     @property
-    def label(self):
+    def description(self):
         if self.get_parent_issue:
-            parent_label = self.get_parent_issue().label
+            parent_label = self.get_parent_issue().description
         else:
             parent_label = None
-        return self.epic or parent_label or self.summary or "No Label"
+        return self.epic or parent_label or self.summary or "No Description"
 
 
 @dataclass
