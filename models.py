@@ -1,5 +1,5 @@
 import dash_table
-from os import WCOREDUMP, environ
+from os import environ
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
