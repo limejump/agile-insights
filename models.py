@@ -1,4 +1,5 @@
-from os import environ
+import dash_table
+from os import WCOREDUMP, environ
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -141,29 +142,54 @@ class Sprint:
             values=pie.data[0]['values'],
             scalegroup='one')
 
-    def mk_summary_table(self):
-        summary_df = self.issues_df.groupby(
+    def mk_issues_summary_df(self):
+        df = self._summarise(self.issues_df)
+        df = df.set_index('planned')
+        df.loc['Total'] = df.sum()
+        df['% delivered'] = self.percent(df, '# delivered', '# issues')
+        df = df.round().reset_index()
+        return df
+
+    @staticmethod
+    def _summarise(df):
+        summary_df = df.groupby(
             ['planned', 'finished_in_sprint']).size().reset_index(
-                    name="issue_count")
+                name="# issues")
         summary_df['planned'].replace({
             True: "planned", False: "unplanned"}, inplace=True)
-        committed_df = summary_df[["planned", "issue_count"]].groupby(
+        transformed_df = summary_df[["planned", "# issues"]].groupby(
             ['planned'], as_index=False).sum()
-        delivered_df = summary_df[summary_df.finished_in_sprint.eq(True)]
-        fig = {
-            'data': [
-                go.Bar(
-                    x=committed_df.planned,
-                    y=committed_df.issue_count,
-                    name="committed"),
-                go.Bar(
-                    x=delivered_df.planned,
-                    y=delivered_df.issue_count,
-                    name="delivered")],
-            'layout': go.Layout(
-                barmode='overlay', yaxis_title="issue count")
-        }
+        delivered_df = summary_df[summary_df.finished_in_sprint.eq(True)][
+            ["planned", "# issues"]].groupby(
+                ['planned'], as_index=False).sum()
+        transformed_df['# delivered'] = delivered_df['# issues'].values
+        return transformed_df
+
+    def mk_summary_table(self):
+        df = self.mk_issues_summary_df()
+        fig = dash_table.DataTable(
+            columns=(
+                [{'name': '', "id": 'planned'}] +
+                [{'name': i, "id": i} for i in df.columns[1:]]),
+            data=df.to_dict('records'),
+            style_cell={'textAlign': 'left'},
+            style_as_list_view=True,
+            style_data_conditional=[
+                {
+                    'if': {
+                        'filter_query': '{planned} = Total'
+                    },
+                    'fontWeight': 'bold'
+                },
+            ]
+        )
         return fig
+
+    @staticmethod
+    def percent(df, col_a, col_b):
+        df = df[col_a] / df[col_b]
+        df = df.map('{:.0%}'.format)
+        return df
 
     def mk_overview_trace(self):
         fig = make_subplots(

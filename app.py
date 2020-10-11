@@ -39,7 +39,7 @@ layout_sprints = html.Div(children=[
     layout_index,
     html.H1('Limejump Tech Latest Sprint Breakdown'),
     html.Div(id='sprints'),
-    dcc.Graph(id="planned-unplanned"),
+    html.Div(id="planned-unplanned"),
     dcc.Graph(id="breakdown"),
     dcc.RadioItems(
         id="team-picker",
@@ -87,7 +87,7 @@ def display_page(pathname):
 
 
 @app.callback(
-    Output('planned-unplanned', 'figure'),
+    Output('planned-unplanned', 'children'),
     [Input(component_id="team-picker", component_property="value")])
 def change_planned_graph(team_name):
     sprint = Sprint(team_name)
