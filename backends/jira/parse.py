@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import EnumMeta, Enum, auto
 from functools import partial
 from itertools import chain
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Set, Tuple
 from re import findall
 
 
@@ -41,6 +41,7 @@ def intermediate_parse(issue_json):
             issue_json['fields']['status']['name']],
         "story_points": issue_json['fields']['customfield_11638'],
         "subtasks": subtask_refs,
+        "labels": set([l.lower() for l in issue_json['fields']['labels']]),
         "status_history": status_history,
         "sprint_history": sprint_history}
     return intermediate
@@ -258,9 +259,14 @@ class JiraIssue:
     status: StatusTypes
     story_points: Optional[float]
     subtasks: List[JiraIssue]
+    labels: Set[str]
     status_metrics: StatusMetrics
     sprint_metrics: SprintMetrics
     get_parent_issue: Optional[ParentGetter] = None
+
+    def __post_init__(self):
+        self._bau = 'bau' in self.labels
+        self.labels.discard('bau')
 
     @classmethod
     def from_parsed_json(
@@ -279,6 +285,7 @@ class JiraIssue:
             status=intermediate['status'],
             story_points=intermediate['story_points'],
             subtasks=subtasks,
+            labels=intermediate['labels'],
             status_metrics=StatusMetrics.from_parsed_json(
                 intermediate['status_history']),
             sprint_metrics=SprintMetrics.from_parsed_json(
@@ -310,7 +317,9 @@ class JiraIssue:
             "start_time": maybe_timestring(self.status_metrics.start),
             "end_time": maybe_timestring(self.status_metrics.end),
             "days_taken": self.status_metrics.days_taken,
-            "description": self.description
+            "description": self.description,
+            "bau": self.bau,
+            "bau_breakdown": list(self.labels)
         }]
 
     @property
@@ -320,6 +329,10 @@ class JiraIssue:
         else:
             parent_label = None
         return self.epic or parent_label or self.summary or "No Description"
+
+    @property
+    def bau(self):
+        return self._bau
 
 
 @dataclass

@@ -147,13 +147,14 @@ class Sprint:
         df = df.set_index('planned')
         df.loc['Total'] = df.sum()
         df['% delivered'] = self.percent(df, '# delivered', '# issues')
+        df['% bau'] = self.percent(df, '# bau', '# issues')
         df = df.round().reset_index()
         return df
 
     @staticmethod
     def _summarise(df):
         summary_df = df.groupby(
-            ['planned', 'finished_in_sprint']).size().reset_index(
+            ['planned', 'finished_in_sprint', 'bau']).size().reset_index(
                 name="# issues")
         summary_df['planned'].replace({
             True: "planned", False: "unplanned"}, inplace=True)
@@ -162,7 +163,12 @@ class Sprint:
         delivered_df = summary_df[summary_df.finished_in_sprint.eq(True)][
             ["planned", "# issues"]].groupby(
                 ['planned'], as_index=False).sum()
-        transformed_df['# delivered'] = delivered_df['# issues'].values
+        transformed_df['# delivered'] = pd.Series(
+            delivered_df['# issues'].values)
+        bau_df = summary_df[summary_df.bau.eq(True)][
+            ["planned", "# issues"]].groupby(['planned'], as_index=False).sum()
+        transformed_df['# bau'] = pd.Series(bau_df['# issues'].values)
+        transformed_df = transformed_df.fillna(0)
         return transformed_df
 
     def mk_summary_table(self):
