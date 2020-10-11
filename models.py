@@ -185,7 +185,8 @@ class Sprint:
                     'if': {
                         'filter_query': '{planned} = Total'
                     },
-                    'fontWeight': 'bold'
+                    'fontWeight': 'bold',
+                    'border-top': '2px solid black'
                 },
             ]
         )
