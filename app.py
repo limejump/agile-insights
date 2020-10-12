@@ -37,10 +37,7 @@ layout_index = html.Div([
 
 layout_sprints = html.Div(children=[
     layout_index,
-    html.H1('Limejump Tech Latest Sprint Breakdown'),
     html.Div(id='sprints'),
-    html.Div(id="planned-unplanned"),
-    dcc.Graph(id="breakdown"),
     dcc.RadioItems(
         id="team-picker",
         options=team_data_options,
@@ -87,23 +84,11 @@ def display_page(pathname):
 
 
 @app.callback(
-    Output('planned-unplanned', 'children'),
+    Output('sprints', 'children'),
     [Input(component_id="team-picker", component_property="value")])
 def change_planned_graph(team_name):
     sprint = Sprint(team_name)
-    fig = sprint.mk_summary_table()
-    # fig.update_layout(transition_duration=500)
-    return fig
-
-
-@app.callback(
-    Output('breakdown', 'figure'),
-    [Input(component_id="team-picker", component_property="value")])
-def change_breakdown_graph(team_name):
-    sprint = Sprint(team_name)
-    fig = sprint.mk_overview_trace()
-    fig.update_layout(transition_duration=500)
-    return fig
+    return sprint.render()
 
 
 @app.callback(
@@ -118,17 +103,6 @@ def update_estimate_graph(team_name):
         dcc.Graph(
             id="overview",
             figure=forecast.mk_time_per_issue_scatter())
-    ]
-
-
-@app.callback(
-    Output('sprints', 'children'),
-    [Input(component_id="team-picker", component_property="value")])
-def change_heading(team_name):
-    sprint = Sprint(team_name)
-    return [
-        html.H2(sprint.name),
-        html.H4(sprint.goal)
     ]
 
 
