@@ -6,8 +6,8 @@ from dash.dependencies import Input, Output
 import pandas as pd
 
 from config import config
-from models import Forecast, Sprint
-
+from models import Forecast
+from views import Sprint
 
 pd.options.mode.chained_assignment = None
 

@@ -1,14 +1,8 @@
-import dash_table
-from functools import partial
 from os import environ
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import random
-
-import dash_core_components as dcc
-import dash_html_components as html
 
 from config import config
 from database.mongo import Client
@@ -129,23 +123,6 @@ class Sprint:
     def goal(self):
         return self._data['goal']
 
-    def _mk_sub_pie_trace(self, df, groupby, df_filters):
-        filtered = df[df_filters]
-
-        if filtered.empty:
-            return self.empty_pie
-
-        pie = px.pie(
-            filtered.groupby(groupby).size().reset_index(
-                name='issue_count'),
-            values='issue_count',
-            names=groupby)
-        # can only make subplots from graph objects
-        return go.Pie(
-            labels=pie.data[0]['labels'],
-            values=pie.data[0]['values'],
-            scalegroup='one')
-
     def mk_issues_summary_df(self):
         df = self._summarise(self.issues_df)
         df = df.set_index('planned')
@@ -175,79 +152,8 @@ class Sprint:
         transformed_df = transformed_df.fillna(0)
         return transformed_df
 
-    def mk_summary_table(self):
-        df = self.mk_issues_summary_df()
-        fig = dash_table.DataTable(
-            columns=(
-                [{'name': '', "id": 'planned'}] +
-                [{'name': i, "id": i} for i in df.columns[1:]]),
-            data=df.to_dict('records'),
-            style_cell={'textAlign': 'left'},
-            style_as_list_view=True,
-            style_data_conditional=[
-                {
-                    'if': {
-                        'filter_query': '{planned} = Total'
-                    },
-                    'fontWeight': 'bold',
-                    'border-top': '2px solid black'
-                },
-            ]
-        )
-        return fig
-
     @staticmethod
     def percent(df, col_a, col_b):
         df = df[col_a] / df[col_b]
         df = df.map('{:.0%}'.format)
         return df
-
-    def mk_overview_trace(self):
-        mk_sub_pie = partial(
-            self._mk_sub_pie_trace, self.issues_df, 'description')
-        fig = make_subplots(
-            1, 4, specs=[[
-                {'type': 'domain'}, {'type': 'domain'},
-                {'type': 'domain'}, {'type': 'domain'}]],
-            subplot_titles=[
-                'Planned', 'Planned Delivered',
-                'Unplanned', 'Unplanned Delivered'])
-        fig.add_trace(
-            mk_sub_pie(
-                df_filters=self.issues_df.planned.eq(True)),
-            1, 1)
-        fig.add_trace(
-            mk_sub_pie(
-                df_filters=(
-                    self.issues_df.planned.eq(True) &
-                    self.issues_df.finished_in_sprint.eq(True))),
-            1, 2)
-        fig.add_trace(
-            mk_sub_pie(
-                df_filters=self.issues_df.planned.eq(False)),
-            1, 3)
-        fig.add_trace(
-            mk_sub_pie(
-                df_filters=(
-                    self.issues_df.planned.eq(False) &
-                    self.issues_df.finished_in_sprint.eq(True))),
-            1, 4)
-        fig.update_layout(
-            title_text='Sprint at a Glance',
-            legend_x=1,
-            legend_y=1)
-        fig.update_traces(
-            textinfo='percent', showlegend=True)
-        fig.update_layout(transition_duration=500)
-        return fig
-
-    def render(self):
-        return [
-            html.H1('Limejump Tech Latest Sprint Breakdown'),
-            html.H2(self.name),
-            html.H4(self.goal),
-            html.Div(
-                id="planned-unplanned",
-                children=[self.mk_summary_table()]),
-            dcc.Graph(id="breakdown", figure=self.mk_overview_trace())
-        ]
