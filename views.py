@@ -8,15 +8,20 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 
-from models import Sprint as SprintModel
+from models import Sprints as SprintsModel
 
 
-class Sprint:
+class Sprints:
     empty_sub_pie = go.Pie(labels=[], values=[], scalegroup='one')
     empty_pie = go.Pie(labels=[], values=[])
 
-    def __init__(self, team_name):
-        self.model = SprintModel(team_name)
+    def __init__(self, team_name, selected=0):
+        self.all_models = SprintsModel(team_name)
+        self.model = self.all_models.sprints[selected]
+        self.select_options = [
+            {'label': s.name, 'value': i}
+            for i, s in enumerate(self.all_models.sprints)]
+        self.currently_selected = self.select_options[selected]['value']
 
     def _mk_sub_pie_trace(self, df, groupby, df_filters):
         filtered = df[df_filters]

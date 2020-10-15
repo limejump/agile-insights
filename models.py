@@ -1,3 +1,4 @@
+import arrow
 from os import environ
 import pandas as pd
 import plotly.express as px
@@ -110,8 +111,8 @@ class Forecast:
 class Sprint:
     empty_pie = go.Pie(labels=[], values=[], scalegroup='one')
 
-    def __init__(self, team_name):
-        self._data = db_client.get_latest_sprint(team_name)
+    def __init__(self, data):
+        self._data = data
         self.issues_df = pd.DataFrame.from_records(
             self._data['issues'])
 
@@ -165,3 +166,11 @@ class Sprint:
             bau.extend(bau_category)
         df = pd.DataFrame(bau)
         return df
+
+
+class Sprints:
+    def __init__(self, team_name):
+        six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
+        self.sprints = [
+            Sprint(s) for s in
+            db_client.get_sprints(team_name, six_sprints_ago)]

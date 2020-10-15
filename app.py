@@ -7,7 +7,7 @@ import pandas as pd
 
 from config import config
 from models import Forecast
-from views import Sprint
+from views import Sprints
 
 pd.options.mode.chained_assignment = None
 
@@ -37,26 +37,45 @@ layout_index = html.Div([
 
 layout_sprints = html.Div(children=[
     layout_index,
+    html.Div(
+        children=[
+            html.Label([
+                'Select Team',
+                dcc.Dropdown(
+                    id="teams-dropdown",
+                    options=team_data_options,
+                    value=team_data_options[0]['value'])],
+                style={'display': 'inline-block', 'width': '30%'}),
+            html.Label([
+                'Select Sprint',
+                dcc.Dropdown(
+                    id="sprint-dropdown",
+                    options=[],
+                    value=0)],
+                style={'display': 'inline-block', 'width': '30%'}),
+        ]),
     html.Div(id='sprints'),
-    dcc.RadioItems(
-        id="team-picker",
-        options=team_data_options,
-        value=team_data_options[0]['value'])
     ])
 
 
 layout_forecasting = html.Div([
     layout_index,
+    html.Div(
+        children=[
+            html.Label([
+                'Select Team',
+                dcc.Dropdown(
+                    id="teams-dropdown",
+                    options=team_data_options,
+                    value=team_data_options[0]['value'])],
+                style={'display': 'inline-block', 'width': '30%'}),
+        ]),
     html.H2('Forecasting'),
     html.Div(id='forecasts'),
     dcc.Input(
         id='num-issues',
         type='number'),
     html.Div(id='actual-forecast'),
-    dcc.RadioItems(
-        id="team-picker",
-        options=team_data_options,
-        value=team_data_options[0]['value'])
 ])
 
 
@@ -84,16 +103,22 @@ def display_page(pathname):
 
 
 @app.callback(
-    Output('sprints', 'children'),
-    [Input(component_id="team-picker", component_property="value")])
-def change_planned_graph(team_name):
-    sprint = Sprint(team_name)
-    return sprint.render()
+    [
+        Output('sprints', 'children'),
+        Output('sprint-dropdown', 'options'),
+    ],
+    [
+        Input(component_id='teams-dropdown', component_property="value"),
+        Input(component_id='sprint-dropdown', component_property="value"),
+    ])
+def change_team(team_name, sprint_index):
+    sprints = Sprints(team_name, selected=sprint_index or 0)
+    return sprints.render(), sprints.select_options
 
 
 @app.callback(
     Output("forecasts", "children"),
-    [Input(component_id="team-picker", component_property="value")])
+    [Input(component_id="teams-dropdown", component_property="value")])
 def update_estimate_graph(team_name):
     forecast = Forecast(team_name)
     return [
@@ -109,7 +134,7 @@ def update_estimate_graph(team_name):
 @app.callback(
     Output('actual-forecast', 'children'),
     [Input("num-issues", "value"),
-     Input(component_id="team-picker", component_property="value")])
+     Input(component_id="teams-dropdown", component_property="value")])
 def run_simulation(num_issues, team_name):
     forecast = Forecast(team_name)
     if num_issues:
