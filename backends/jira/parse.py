@@ -314,9 +314,8 @@ class JiraIssue:
             "story_points": self.story_points,
             "started": self.status_metrics.started,
             "finished": self.status_metrics.finished,
-            # FIXME: start/end are datetimes so this isn't really json
-            "start_time": self.status_metrics.start,
-            "end_time": self.status_metrics.end,
+            "start_time": maybe_timestring(self.status_metrics.start),
+            "end_time": maybe_timestring(self.status_metrics.end),
             "days_taken": self.status_metrics.days_taken,
             "description": self.description,
             "bau": self.bau,
@@ -374,9 +373,8 @@ class Sprint:
             "name": self.name,
             "goal": self.goal,
             "state": self.state,
-            # FIXME: start/end are datetimes so this isn't really json
-            "start": self.start,
-            "end": self.end,
+            "start": maybe_timestring(self.start),
+            "end": maybe_timestring(self.end),
             "issues": issues}
 
     def _issue_to_json(self, issue: JiraIssue) -> List[dict]:
