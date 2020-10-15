@@ -171,7 +171,7 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
                 fetch_sprint_issues, board_id))
         for url in closed_sprint_urls[-past:]
     ]
-    return [sprint.to_json() for sprint in all_]
+    return [sprint.to_mongo() for sprint in all_]
 
 
 def fetch_sprint_issues(board_id, sprint_id):

@@ -41,7 +41,7 @@ def issues(access_token, db_host, db_port, db_username, db_password):
         data = fetch_all_completed_issues(team.board_id)
         db_client.add_historic_issues(
             team.name,
-            list(chain(*[d.to_json() for d in data])))
+            list(chain(*[d.to_mongo() for d in data])))
 
 
 @extract.group()

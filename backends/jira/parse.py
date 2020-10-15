@@ -322,6 +322,24 @@ class JiraIssue:
             "bau_breakdown": list(self.labels)
         }]
 
+    def to_mongo(self) -> List[dict]:
+        if self.subtasks:
+            return list(chain(*[subt.to_mongo() for subt in self.subtasks]))
+        return [{
+            "type": self.type_.name,
+            "name": self.name,
+            "status": self.status.name,
+            "story_points": self.story_points,
+            "started": self.status_metrics.started,
+            "finished": self.status_metrics.finished,
+            "start_time": self.status_metrics.start,
+            "end_time": self.status_metrics.end,
+            "days_taken": self.status_metrics.days_taken,
+            "description": self.description,
+            "bau": self.bau,
+            "bau_breakdown": list(self.labels)
+        }]
+
     @property
     def description(self):
         if self.get_parent_issue:
@@ -391,6 +409,29 @@ class Sprint:
                 filtered_issues.append(json_record)
         return filtered_issues
 
+    def to_mongo(self):
+        issues = list(
+            chain(*[self._issue_to_mongo(i) for i in self.issues]))
+        return {
+            "_id": self.id_,
+            "name": self.name,
+            "goal": self.goal,
+            "state": self.state,
+            "start": self.start,
+            "end": self.end,
+            "issues": issues}
+
+    def _issue_to_mongo(self, issue):
+        issues = issue.subtasks or [issue]
+        issues_json = issue.to_mongo()
+        filtered_issues = []
+        for json_record, issue in zip(issues_json, issues):
+            json_record['planned'] = self.planned_issue(issue)
+            json_record['started_in_sprint'] = self.started_in_sprint(issue)
+            json_record['finished_in_sprint'] = self.finished_in_sprint(issue)
+            if not self.finished_before_sprint_start(issue):
+                filtered_issues.append(json_record)
+        return filtered_issues
     #
     # -------- Issue predicates and filters ----------
     #
