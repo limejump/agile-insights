@@ -86,3 +86,13 @@ class Client:
         team_id = db.teams.find_one({'name': team_name})['_id']
         return list(db.sprints.find(
             {'team_id': team_id}).sort([('start', -1)]).limit(1)).pop()
+
+    def get_sprints(self, team_name, ending_after):
+        db = self.client.sprints
+        team_id = db.teams.find_one({'name': team_name})['_id']
+        return list(db.sprints.find(
+            {
+                'team_id': team_id,
+                'end': {
+                    '$gte': ending_after}
+            }).sort([('start', -1)]))
