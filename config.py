@@ -2,32 +2,6 @@ from dataclasses import dataclass
 from os.path import join
 from typing import List
 
-# FIXME: A fair amount of duplication...
-TRADING_BOARD = 140
-TRADING_HISTORIC_FOLDER = join('datasets', 'forecasting', 'trading')
-CX_BOARD = 130
-CX_HISTORIC_FOLDER = join('datasets', 'forecasting', 'cx')
-BILLING_BOARD = 145
-BILLING_HISTORIC_FOLDER = join('datasets', 'forecasting', 'datarecs')
-
-JIRA_HISTORIC_SOURCE_SINK = [
-    (TRADING_BOARD, TRADING_HISTORIC_FOLDER),
-    (CX_BOARD, CX_HISTORIC_FOLDER),
-    (BILLING_BOARD, BILLING_HISTORIC_FOLDER)
-]
-
-FOLDERS = {
-    'cx': {
-        'historic': CX_HISTORIC_FOLDER
-    },
-    'billing': {
-        'historic': BILLING_HISTORIC_FOLDER
-    },
-    'trading': {
-        'historic': TRADING_HISTORIC_FOLDER
-    },
-}
-
 
 class ConfigClass:
     def __init__(self, dataclass):
