@@ -157,3 +157,11 @@ class Sprint:
         df = df[col_a] / df[col_b]
         df = df.map('{:.0%}'.format)
         return df
+
+    def mk_bau_breakdown_df(self):
+        bau = []
+        for bau_category in self.issues_df[
+                self.issues_df.bau.eq(True)].bau_breakdown.values:
+            bau.extend(bau_category)
+        df = pd.DataFrame(bau)
+        return df
