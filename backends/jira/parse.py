@@ -6,11 +6,15 @@ from datetime import datetime
 from enum import EnumMeta, Enum, auto
 from functools import partial
 from itertools import chain
+import logging
 from typing import Any, Callable, List, Optional, Set, Tuple
-from re import findall
+import re
 
 
 TIMEFORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
+
+log = logging.getLogger(__name__)
+log.setLevel('INFO')
 
 
 def parse_issue(
@@ -71,7 +75,7 @@ def _parse_changelog(history_json: dict) -> Tuple[List, List]:
 def _parse_sprint_change(sprint_field: dict) -> dict:
     # some muppet thought that it would be a good ideas to store the
     # sprint change lists as comma separated strings.
-    items_re = partial(findall, r'[^,\s][^\,]*[^,\s]*')
+    items_re = partial(re.findall, r'[^,\s][^\,]*[^,\s]*')
     return {
         "from": set(map(int, items_re(sprint_field['from']))),
         "to": set(map(int, items_re(sprint_field['to'])))}
@@ -150,19 +154,25 @@ class StatusTypes(JiraEnum):
 
     @staticmethod
     def canonicalize_name(name):
-        mappings = {
-            'underreview': 'codereview',
-        }
+        regex_names = (
+            (
+                re.compile(r'\w*(test|staging|master|qa)\w*'),
+                StatusTypes.qa.name
+            ),
+            (
+                re.compile(r'\w*review\w*'),
+                StatusTypes.codereview.name
+            )
+        )
+
         lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
-        mapped = mappings.get(lower_no_spaces)
-        # a cx specific column
-        if 'qa' in lower_no_spaces:
-            lower_no_spaces = 'qa'
-        if 'inmaster' in lower_no_spaces:
-            lower_no_spaces = 'qa'  # FIXME: ??
-        if 'done' in lower_no_spaces:
-            lower_no_spaces = 'done'
-        return mapped or lower_no_spaces
+        for regex, name in regex_names:
+            match = regex.match(lower_no_spaces)
+            if match is not None:
+                log.debug('matched %s as %s', match.group(), name)
+                return name
+
+        return lower_no_spaces
 
 
 @dataclass
