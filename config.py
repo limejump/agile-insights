@@ -67,5 +67,10 @@ config.set(
     [
         TeamInfo('cx', 130),
         TeamInfo('dar', 145),
-        TeamInfo('voyager', 140)
+        TeamInfo('voyager', 140),
+        TeamInfo('infra', 142),
+        # TODO: support kanban extraction
+        # TeamInfo('platform', 139),
+        TeamInfo('embedded', 126),
+        TeamInfo('helios', 163)
     ])
