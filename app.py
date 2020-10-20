@@ -7,7 +7,7 @@ import pandas as pd
 
 from config import config
 from models import Forecast
-from views import Sprints
+from views import Sprints, Sprint
 
 pd.options.mode.chained_assignment = None
 
@@ -109,11 +109,18 @@ def display_page(pathname):
     ],
     [
         Input(component_id='teams-dropdown', component_property="value"),
-        Input(component_id='sprint-dropdown', component_property="value"),
+        Input(component_id='sprint-dropdown', component_property="value")
     ])
-def change_team(team_name, sprint_index):
-    sprints = Sprints(team_name, selected=sprint_index or 0)
-    return sprints.render(), sprints.select_options
+def change_sprint(team_name, sprint_id):
+    sprints = Sprints(team_name)
+    ctx = dash.callback_context
+    param = ctx.triggered.pop()['prop_id']
+
+    if param == 'sprint-dropdown.value':
+        sprint = Sprint(sprint_id)
+    else:
+        sprint = Sprint(sprints.default_select)
+    return sprint.render(), sprints.select_options
 
 
 @app.callback(

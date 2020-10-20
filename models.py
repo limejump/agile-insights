@@ -111,8 +111,8 @@ class Forecast:
 class Sprint:
     empty_pie = go.Pie(labels=[], values=[], scalegroup='one')
 
-    def __init__(self, data):
-        self._data = data
+    def __init__(self, sprint_id):
+        self._data = db_client.get_sprint(sprint_id)
         self.issues_df = pd.DataFrame.from_records(
             self._data['issues'])
 
@@ -171,6 +171,7 @@ class Sprint:
 class Sprints:
     def __init__(self, team_name):
         six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
-        self.sprints = [
-            Sprint(s) for s in
-            db_client.get_sprints(team_name, six_sprints_ago)]
+        self.refs = {
+            s['_id']: s['name']
+            for s in db_client.get_sprints(team_name, six_sprints_ago)
+        }
