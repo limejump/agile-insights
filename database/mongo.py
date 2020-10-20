@@ -64,6 +64,10 @@ class Client:
         team_id = db.teams.find_one({'name': team_name})['_id']
         return list(db.historic_issues.find({"team_id": team_id}))
 
+    def get_sprint(self, sprint_id):
+        db = self.client.sprints
+        return db.sprints.find_one({'_id': sprint_id})
+
     def add_sprint(self, team_name, data):
         db = self.client.sprints
         team_id = db.teams.find_one({'name': team_name})['_id']
