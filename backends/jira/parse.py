@@ -442,6 +442,7 @@ class Sprint:
             if not self.finished_before_sprint_start(issue):
                 filtered_issues.append(json_record)
         return filtered_issues
+
     #
     # -------- Issue predicates and filters ----------
     #
