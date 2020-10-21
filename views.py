@@ -147,3 +147,12 @@ class Sprint:
         dom_nodes.append(
             dcc.Graph(id="breakdown", figure=self.mk_overview_trace()))
         return dom_nodes
+
+    @classmethod
+    def callback_elements(cls):
+        ''' List of DOM elements that will be manipulated by
+            callbacks in the main app, to pass layout validation
+        '''
+        return [
+            daq.BooleanSwitch(id='goal-completion-toggle')
+        ]
