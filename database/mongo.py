@@ -85,6 +85,18 @@ class Client:
             assert e.details['keyValue']['_id'] == data['_id']
             log.info('Sprint with id %s already extracted' % data['_id'])
 
+    def get_sprint_auxillary_data(self, sprint_id):
+        db = self.client.sprints
+        return db.sprints_aux.find_one({'sprint_id': sprint_id}) or {}
+
+    def update_sprint_auxillary_data(self, sprint_id, data):
+        db = self.client.sprints
+        data['sprint_id'] = sprint_id
+        db.sprints_aux.replace_one(
+            {'sprint_id': sprint_id},
+            data,
+            upsert=True)
+
     def get_latest_sprint(self, team_name):
         db = self.client.sprints
         team_id = db.teams.find_one({'name': team_name})['_id']

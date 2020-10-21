@@ -54,7 +54,9 @@ layout_sprints = html.Div(children=[
                     value=0)],
                 style={'display': 'inline-block', 'width': '30%'}),
         ]),
-    html.Div(id='sprints'),
+    html.Div(
+        id='sprints',
+        children=Sprint.callback_elements())
     ])
 
 
@@ -108,18 +110,21 @@ def display_page(pathname):
         Output('sprint-dropdown', 'options'),
     ],
     [
+        # Sprint selectors
         Input(component_id='teams-dropdown', component_property="value"),
-        Input(component_id='sprint-dropdown', component_property="value")
+        Input(component_id='sprint-dropdown', component_property="value"),
+        # Sprint modifiers, accessible via users
+        Input(component_id='goal-completion-toggle', component_property="on")
     ])
-def change_sprint(team_name, sprint_id):
+def change_sprint(team_name, sprint_id, goal_complete):
     sprints = Sprints(team_name)
-    ctx = dash.callback_context
-    param = ctx.triggered.pop()['prop_id']
+    sprint = Sprint(sprint_id or sprints.default_select)
 
-    if param == 'sprint-dropdown.value':
-        sprint = Sprint(sprint_id)
-    else:
-        sprint = Sprint(sprints.default_select)
+    triggers = dash.callback_context.triggered
+    if triggers:
+        param = triggers.pop()['prop_id']
+        if param == 'goal-completion-toggle.on':
+            sprint.update_goal_completion(goal_complete)
     return sprint.render(), sprints.select_options
 
 

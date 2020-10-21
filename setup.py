@@ -15,6 +15,7 @@ setuptools.setup(
         'click',
         'dash',
         'dash-bootstrap-components',
+        'dash-daq',
         'pandas',
         'pymongo',
         'requests'

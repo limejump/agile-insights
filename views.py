@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+import dash_daq as daq
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
@@ -27,6 +28,9 @@ class Sprint:
 
     def __init__(self, sprint_id):
         self.model = SprintModel(sprint_id)
+
+    def update_goal_completion(self, goal_completion_val):
+        self.model = self.model.update_goal_completion(goal_completion_val)
 
     def _mk_sub_pie_trace(self, df, groupby, df_filters):
         filtered = df[df_filters]
@@ -130,6 +134,12 @@ class Sprint:
             html.P([
                 dbc.Badge("Sprint Goal", color="success", className="mr-1"),
                 self.model.goal]),
+            daq.BooleanSwitch(
+                id='goal-completion-toggle',
+                label='Goal Achieved',
+                color='#008000',
+                on=self.model.goal_completed
+            ),
             html.H4("Sprint Summary"),
             html.Div(
                 id="planned-unplanned",

@@ -113,6 +113,7 @@ class Sprint:
 
     def __init__(self, sprint_id):
         self._data = db_client.get_sprint(sprint_id)
+        self._auxillary_data = db_client.get_sprint_auxillary_data(sprint_id)
         self.issues_df = pd.DataFrame.from_records(
             self._data['issues'])
 
@@ -123,6 +124,18 @@ class Sprint:
     @property
     def goal(self):
         return self._data['goal']
+
+    @property
+    def goal_completed(self):
+        return bool(self._auxillary_data.get('goal_completed'))
+
+    def update_goal_completion(self, goal_completion_val):
+        db_client.update_sprint_auxillary_data(
+            self._data['_id'],
+            {'goal_completed': goal_completion_val}
+        )
+        sprint = Sprint(self._data['_id'])
+        return sprint
 
     def mk_issues_summary_df(self):
         df = self._summarise(self.issues_df)
