@@ -121,7 +121,11 @@ def display_page(pathname):
     ])
 def change_sprint(team_name, sprint_id, goal_complete):
     sprints = Sprints(team_name)
-    sprint = Sprint(sprint_id or sprints.default_select)
+    # sprint_id can be set when we select a new team
+    if sprint_id in sprints.sprint_ids:
+        sprint = Sprint(sprint_id)
+    else:
+        sprint = Sprint(sprints.default_select)
 
     triggers = dash.callback_context.triggered
     if triggers:
