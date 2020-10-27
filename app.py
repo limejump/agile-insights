@@ -36,28 +36,31 @@ layout_index = html.Div([
 
 
 layout_sprints = html.Div(children=[
-    layout_index,
-    html.Div(
-        children=[
-            html.Label([
-                'Select Team',
+    html.Div([
+        dbc.Row([dbc.Col([layout_index])]),
+        dbc.Row([dbc.Col([
+            html.Div([html.Label([
+                'Team',
                 dcc.Dropdown(
                     id="teams-dropdown",
                     options=team_data_options,
-                    value=team_data_options[0]['value'])],
-                style={'display': 'inline-block', 'width': '30%'}),
-            html.Label([
-                'Select Sprint',
+                    value=team_data_options[0]['value'])
+            ], style={'width': '100%'})]),
+            html.Div([
                 dcc.Dropdown(
                     id="sprint-dropdown",
                     options=[],
-                    value=0)],
-                style={'display': 'inline-block', 'width': '30%'}),
-        ]),
-    html.Div(
-        id='sprints',
-        children=Sprint.callback_elements())
-    ])
+                    value=0)
+            ])],
+            width=3, className='bg-info'),
+            dbc.Col(
+                html.Div(
+                    id='sprints',
+                    children=Sprint.callback_elements(),
+                    className='container-fluid'),
+                width=9)
+        ])], className='container-fluid')
+])
 
 
 layout_forecasting = html.Div([

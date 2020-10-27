@@ -13,6 +13,10 @@ from models import Sprints as SprintsModel
 from models import Sprint as SprintModel
 
 
+def singleColRow(item):
+    return dbc.Row([dbc.Col([item])])
+
+
 class Sprints:
     def __init__(self, team_name):
         self.sprints = SprintsModel(team_name)
@@ -20,6 +24,10 @@ class Sprints:
             {'label': name, 'value': id_}
             for id_, name in self.sprints.refs.items()]
         self.default_select = self.select_options[0]['value']
+
+    @property
+    def sprint_ids(self):
+        return list(self.sprints.refs.keys())
 
 
 class Sprint:
@@ -57,7 +65,7 @@ class Sprint:
             df.groupby(0).size().reset_index(name='issue_count'),
             values='issue_count',
             names=0,
-            height=300,
+            height=220,
             width=300)
         fig.update_layout(
             margin=dict(t=0, b=0, l=5, r=0, pad=2),
@@ -130,32 +138,41 @@ class Sprint:
     def render(self):
         bau_breakdown = self.maybe_bau_breakdown()
         dom_nodes = [
-            html.H2(self.model.name),
-            html.P([
-                dbc.Badge("Sprint Goal", color="success", className="mr-1"),
-                self.model.goal]),
-            daq.BooleanSwitch(
-                id='goal-completion-toggle',
-                label='Goal Achieved',
-                color='#008000',
-                on=self.model.goal_completed
-            ),
-            html.H4("Sprint Summary"),
-            html.Div(
+            singleColRow(html.H2(self.model.name)),
+            dbc.Row([
+                dbc.Col([html.P([
+                    dbc.Badge("Sprint Goal", color="success", className="mr-1"),
+                    self.model.goal])], width=9),
+                dbc.Col([daq.BooleanSwitch(
+                    id='goal-completion-toggle',
+                    label='Goal Achieved',
+                    color='#008000',
+                    on=self.model.goal_completed
+                )], width=3)
+            ]),
+            singleColRow(html.H4("Sprint Summary")),
+            singleColRow(html.Div(
                 id="planned-unplanned",
                 children=[self.mk_summary_table()],
-                style={'padding': 20}
-                ),
+                style={'padding': 10}
+                )),
         ]
         if bau_breakdown:
             dom_nodes.extend([
-                html.H4("BAU Breakdown"),
-                dcc.Graph(
-                    id='bau-breakdown',
-                    figure=bau_breakdown)
+                singleColRow(html.H4("BAU Breakdown")),
+                singleColRow(
+                    dcc.Graph(
+                        id='bau-breakdown',
+                        figure=bau_breakdown,
+                        config={
+                            'displayModeBar': False,
+                            'fillFrame': True,
+                            'frameMargins': 0
+                        })
+                    )
             ])
-        dom_nodes.append(
-            dcc.Graph(id="breakdown", figure=self.mk_overview_trace()))
+        # dom_nodes.append(
+        #     dcc.Graph(id="breakdown", figure=self.mk_overview_trace()))
         return dom_nodes
 
     @classmethod
