@@ -29,7 +29,7 @@ url_bar_and_content_div = html.Div([
 
 layout_index = html.Div([
     dbc.Nav([
-        dbc.NavItem(dbc.NavLink('Sprints Metrics', href='/sprints')),
+        dbc.NavItem(dbc.NavLink('Sprints', href='/sprints')),
         dbc.NavItem(dbc.NavLink('Forecasts', href='/forecasts')),
     ], pills=True)
 ])
