@@ -155,14 +155,14 @@ class Sprint:
                 dbc.FormGroup(dbc.Textarea(
                     className='markdown',
                     id='notes-content', value=notes,
-                    style={'height': 250})))
+                    style={'min-height': 250})))
         else:
             form_children.append(
                 dbc.FormGroup(dbc.Textarea(
                     className='markdown',
                     id='notes-content',
                     placeholder='Write notes here in markdown format...',
-                    style={'height': 250})))
+                    style={'min-height': 250})))
         form_children.append(
             dbc.Button("Save", id="submit-notes", color="primary"))
         return dbc.Form(form_children)
