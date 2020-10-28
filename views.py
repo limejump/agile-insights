@@ -172,16 +172,22 @@ class Sprint:
         return html.Div([
             dcc.Markdown(
                 notes,
-                className='markdown',
+                className='markdown rounded border-secondary',
                 dedent=True,
-                style={'font-size': '10px', 'height': 250}),
+                style={
+                    'font-size': '10px',
+                    'min-height': 250,
+                    'padding': '10px',
+                    'border-style': 'solid',
+                    'border-width': '1px'
+                     }),
+            dbc.Button(
+                    "Edit",
+                    id="edit-notes",
+                    color="primary",
+                    style={'margin-top': 10}),
             ],
-            className='rounded border-secondary',
-            style={
-                'border-style': 'solid',
-                # 'border-color': 'border-light',
-                'border-width': '1px',
-                'padding': '10px'}
+
         )
 
     def render(self):
@@ -224,10 +230,6 @@ class Sprint:
                 dbc.Col([
                     html.H4("Notes"),
                     self.read_only_notes(self.model.notes),
-                    dbc.Button(
-                            "Edit",
-                            id="edit-notes",
-                            color="primary"),
                     html.Div(id="submit-notes", hidden=True),
                     html.Div(id="notes-content", hidden=True)],
                     width=6
