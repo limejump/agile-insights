@@ -34,11 +34,23 @@ class Sprint:
     empty_sub_pie = go.Pie(labels=[], values=[], scalegroup='one')
     empty_pie = go.Pie(labels=[], values=[])
 
-    def __init__(self, sprint_id):
+    def __init__(self, sprint_id, edit_notes):
         self.model = SprintModel(sprint_id)
+        if not self.model.notes:
+            self.edit_notes = True
+        else:
+            self.edit_notes = edit_notes
 
     def update_goal_completion(self, goal_completion_val):
         self.model = self.model.update_goal_completion(goal_completion_val)
+
+    def save_notes(self, notes):
+        if notes:
+            self.model = self.model.save_notes(notes)
+        else:
+            # FIXME: may want to handle this using validation using
+            # FormFeedback
+            self.edit_notes = True
 
     def _mk_sub_pie_trace(self, df, groupby, df_filters):
         filtered = df[df_filters]
@@ -135,6 +147,43 @@ class Sprint:
         fig.update_layout(transition_duration=500)
         return fig
 
+    @staticmethod
+    def editable_notes(notes):
+        form_children = []
+        if notes:
+            form_children.append(
+                dbc.FormGroup(dbc.Textarea(
+                    className='markdown',
+                    id='notes-content', value=notes,
+                    style={'height': 250})))
+        else:
+            form_children.append(
+                dbc.FormGroup(dbc.Textarea(
+                    className='markdown',
+                    id='notes-content',
+                    placeholder='Write notes here in markdown format...',
+                    style={'height': 250})))
+        form_children.append(
+            dbc.Button("Save", id="submit-notes", color="primary"))
+        return dbc.Form(form_children)
+
+    @staticmethod
+    def read_only_notes(notes):
+        return html.Div([
+            dcc.Markdown(
+                notes,
+                className='markdown',
+                dedent=True,
+                style={'font-size': '10px', 'height': 250}),
+            ],
+            className='rounded border-secondary',
+            style={
+                'border-style': 'solid',
+                # 'border-color': 'border-light',
+                'border-width': '1px',
+                'padding': '10px'}
+        )
+
     def render(self):
         bau_breakdown = self.maybe_bau_breakdown()
         dom_nodes = [
@@ -154,23 +203,52 @@ class Sprint:
             singleColRow(html.Div(
                 id="planned-unplanned",
                 children=[self.mk_summary_table()],
-                style={'padding': 10}
+                style={'padding': 20}
                 )),
         ]
+        # FIXME: When in edit mode we have to add a hidden Div representing
+        # the edit button from read only mode, and visa versa.
+        # If we don't we get callback errors for which ever button doesn't
+        # exist. There should be a better way to account for conditionally
+        # rendered dom nodes.
+        if self.edit_notes:
+            row_children = [
+                dbc.Col([
+                    html.H4("Notes"),
+                    self.editable_notes(self.model.notes),
+                    html.Div(id="edit-notes", hidden=True)],
+                    width=6
+                )]
+        else:
+            row_children = [
+                dbc.Col([
+                    html.H4("Notes"),
+                    self.read_only_notes(self.model.notes),
+                    dbc.Button(
+                            "Edit",
+                            id="edit-notes",
+                            color="primary"),
+                    html.Div(id="submit-notes", hidden=True),
+                    html.Div(id="notes-content", hidden=True)],
+                    width=6
+                )]
+
         if bau_breakdown:
-            dom_nodes.extend([
-                singleColRow(html.H4("BAU Breakdown")),
-                singleColRow(
-                    dcc.Graph(
-                        id='bau-breakdown',
-                        figure=bau_breakdown,
-                        config={
-                            'displayModeBar': False,
-                            'fillFrame': True,
-                            'frameMargins': 0
-                        })
-                    )
-            ])
+            row_children.append(
+                dbc.Col([
+                    singleColRow(html.H4("BAU Breakdown")),
+                    singleColRow(
+                        dcc.Graph(
+                            id='bau-breakdown',
+                            figure=bau_breakdown,
+                            config={
+                                'displayModeBar': False,
+                                'fillFrame': True,
+                                'frameMargins': 0
+                            })
+                        )
+                ], width=6))
+        dom_nodes.append(dbc.Row(row_children))
         # dom_nodes.append(
         #     dcc.Graph(id="breakdown", figure=self.mk_overview_trace()))
         return dom_nodes
@@ -181,5 +259,8 @@ class Sprint:
             callbacks in the main app, to pass layout validation
         '''
         return [
-            daq.BooleanSwitch(id='goal-completion-toggle')
+            daq.BooleanSwitch(id='goal-completion-toggle'),
+            dbc.Button(id='edit-notes'),
+            dbc.Button(id='submit-notes'),
+            dbc.Textarea(id='notes-content')
         ]

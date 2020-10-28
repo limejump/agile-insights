@@ -129,13 +129,30 @@ class Sprint:
     def goal_completed(self):
         return bool(self._auxillary_data.get('goal_completed'))
 
+    @property
+    def notes(self):
+        return self._auxillary_data.get('notes')
+
     def update_goal_completion(self, goal_completion_val):
         db_client.update_sprint_auxillary_data(
             self._data['_id'],
-            {'goal_completed': goal_completion_val}
+            {
+                'goal_completed': goal_completion_val,
+                'notes': self.notes
+            }
         )
         sprint = Sprint(self._data['_id'])
         return sprint
+
+    def save_notes(self, notes):
+        db_client.update_sprint_auxillary_data(
+            self._data['_id'],
+            {
+                'goal_completed': self.goal_completed,
+                'notes': notes
+            }
+        )
+        return Sprint(self._data['_id'])
 
     def mk_issues_summary_df(self):
         df = self._summarise(self.issues_df)

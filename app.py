@@ -2,7 +2,7 @@ import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import pandas as pd
 
 from config import config
@@ -37,6 +37,7 @@ layout_index = html.Div([
 
 layout_sprints = html.Div(children=[
     html.Div([
+        html.Div(children=False, id='notes-editability', hidden=True),
         dbc.Row([dbc.Col([layout_index])]),
         dbc.Row([dbc.Col([
             html.Div([html.Label([
@@ -45,14 +46,15 @@ layout_sprints = html.Div(children=[
                     id="teams-dropdown",
                     options=team_data_options,
                     value=team_data_options[0]['value'])
-            ], style={'width': '100%'})]),
-            html.Div([
+                ], style={'width': '100%', 'font-size': '12px'})]),
+            html.Div([html.Label([
+                'Sprint',
                 dcc.Dropdown(
                     id="sprint-dropdown",
                     options=[],
                     value=0)
-            ])],
-            width=3, className='bg-info'),
+                ], style={'width': '100%', 'font-size': '12px'})]),
+            ], width=3, className='bg-info'),
             dbc.Col(
                 html.Div(
                     id='sprints',
@@ -111,28 +113,51 @@ def display_page(pathname):
     [
         Output('sprints', 'children'),
         Output('sprint-dropdown', 'options'),
+        Output('notes-editability', 'children')
     ],
     [
         # Sprint selectors
         Input(component_id='teams-dropdown', component_property="value"),
         Input(component_id='sprint-dropdown', component_property="value"),
         # Sprint modifiers, accessible via users
-        Input(component_id='goal-completion-toggle', component_property="on")
+        Input(component_id='goal-completion-toggle', component_property="on"),
+        Input(component_id='edit-notes', component_property="n_clicks"),
+        Input(component_id='submit-notes', component_property="n_clicks"),
+    ],
+    [
+        State('notes-editability', 'children'),
+        State('notes-content', 'value')
     ])
-def change_sprint(team_name, sprint_id, goal_complete):
+def change_sprint(
+        team_name, sprint_id,
+        goal_complete, edit_notes, submit_notes,
+        notes_editability, notes_content):
+    # if someone deletes the team selection we'll recieve None
+    if team_name is None:
+        team_name = team_data_options[0]['value']
+
+    if edit_notes:
+        notes_editability = True
+    if submit_notes:
+        notes_editability = False
+
     sprints = Sprints(team_name)
-    # sprint_id can be set when we select a new team
+    # sprint_id can alreaedy be set when we select a new team
+    # so we may need to override it to the teams' default.
     if sprint_id in sprints.sprint_ids:
-        sprint = Sprint(sprint_id)
+        sprint = Sprint(sprint_id, notes_editability)
     else:
-        sprint = Sprint(sprints.default_select)
+        sprint = Sprint(sprints.default_select, notes_editability)
 
     triggers = dash.callback_context.triggered
     if triggers:
         param = triggers.pop()['prop_id']
         if param == 'goal-completion-toggle.on':
             sprint.update_goal_completion(goal_complete)
-    return sprint.render(), sprints.select_options
+        elif param == 'submit-notes.n_clicks':
+            sprint.save_notes(notes_content)
+
+    return sprint.render(), sprints.select_options, notes_editability
 
 
 @app.callback(
