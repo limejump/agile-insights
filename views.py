@@ -190,6 +190,75 @@ class Sprint:
 
         )
 
+    def details_table(self):
+        df = self.model.issues_df[[
+            'name', 'description',
+            'planned', 'finished_in_sprint', 'bau']]
+        df = df.rename(columns={
+            'finished_in_sprint': 'delivered',
+            })
+
+        fig = dash_table.DataTable(
+            columns=(
+                [{'name': i, "id": i} for i in df.columns]),
+            data=df.to_dict('records'),
+            sort_action='native',
+            filter_action='native',
+            # fixed_rows={'headers': True},
+            # style_as_list_view=True,
+            style_table={
+                'height': 400,
+                'overflowY': 'scroll',
+                'overflowX': 'scroll'},
+            style_cell={'textAlign': 'left'},
+            style_data={
+                'maxWidth': '150px',
+                'whiteSpace': 'normal'
+            },
+            style_data_conditional=[
+                {
+                    'if': {
+                        'column_id': 'planned',
+                        'filter_query': '{planned} contains true'
+                    },
+                    'backgroundColor': '#3ace3a',
+                    'color': 'white'
+                },
+                {
+                    'if': {
+                        'column_id': 'delivered',
+                        'filter_query': '{delivered} contains true'
+                    },
+                    'backgroundColor': '#3ace3a',
+                    'color': 'white'
+                },
+                {
+                    'if': {
+                        'column_id': 'planned',
+                        'filter_query': '{planned} contains false'
+                    },
+                    'backgroundColor': '#c23b22',
+                    'color': 'white'
+                },
+                {
+                    'if': {
+                        'column_id': 'delivered',
+                        'filter_query': '{delivered} contains false'
+                    },
+                    'backgroundColor': '#c23b22',
+                    'color': 'white'
+                },
+                {
+                    'if': {
+                        'column_id': 'bau',
+                        'filter_query': '{bau} contains true'
+                    },
+                    'backgroundColor': '#fdef3b',
+                },
+            ]
+            )
+        return fig
+
     def render(self):
         bau_breakdown = self.maybe_bau_breakdown()
         dom_nodes = [
@@ -209,7 +278,7 @@ class Sprint:
             singleColRow(html.Div(
                 id="planned-unplanned",
                 children=[self.mk_summary_table()],
-                style={'padding': 20}
+                style={'padding-top': 20, 'padding-bottom': 20}
                 )),
         ]
         # FIXME: When in edit mode we have to add a hidden Div representing
@@ -251,6 +320,13 @@ class Sprint:
                         )
                 ], width=6))
         dom_nodes.append(dbc.Row(row_children))
+        dom_nodes.extend([
+            singleColRow(html.H4("Details", style={'padding-top': 20})),
+            singleColRow(
+                html.Div(
+                    self.details_table(),
+                    style={'padding-bottom': 20}
+                    ))])
         # dom_nodes.append(
         #     dcc.Graph(id="breakdown", figure=self.mk_overview_trace()))
         return dom_nodes
