@@ -156,7 +156,7 @@ class StatusTypes(JiraEnum):
     def canonicalize_name(name):
         regex_names = (
             (
-                re.compile(r'\w*(test|staging|master|qa)\w*'),
+                re.compile(r'\w*(test|staging|master|qa|uat)\w*'),
                 StatusTypes.qa.name
             ),
             (
