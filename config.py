@@ -72,5 +72,6 @@ config.set(
         # TODO: support kanban extraction
         # TeamInfo('platform', 139),
         TeamInfo('embedded', 126),
+        TeamInfo('datascience', 177),
         TeamInfo('helios', 163)
     ])
