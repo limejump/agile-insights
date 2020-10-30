@@ -205,3 +205,28 @@ class Sprints:
             s['_id']: s['name']
             for s in db_client.get_sprints(team_name, six_sprints_ago)
         }
+
+
+class SprintsAggregate:
+    def __init__(self, team_name):
+        six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
+        self.refs = [s['_id'] for s in db_client.get_sprints(
+            team_name, six_sprints_ago)]
+        self.sprints = [Sprint(sprint_id) for sprint_id in self.refs]
+
+    def bau_breakdown_df(self):
+        bau_agg_df = pd.concat(
+            sprint.mk_bau_breakdown_df() for sprint in self.sprints
+        )
+        return bau_agg_df
+
+    def sprint_summary_df(self):
+        dfs = []
+        for sprint in self.sprints:
+            summary_df = sprint.mk_issues_summary_df().tail(1)
+            summary_df['sprint_start_date'] = sprint._data['start']
+            goal_completed = (
+                100 if sprint.goal_completed else 0)
+            summary_df['goal_completed'] = goal_completed
+            dfs.append(summary_df)
+        return pd.concat(dfs)

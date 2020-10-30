@@ -7,7 +7,7 @@ import pandas as pd
 
 from config import config
 from models import Forecast
-from views import Sprints, Sprint
+from views import Sprints, Sprint, Metrics
 
 pd.options.mode.chained_assignment = None
 
@@ -31,6 +31,7 @@ layout_index = html.Div([
     dbc.Nav([
         dbc.NavItem(dbc.NavLink('Sprints', href='/sprints')),
         dbc.NavItem(dbc.NavLink('Forecasts', href='/forecasts')),
+        dbc.NavItem(dbc.NavLink('Metrics', href='/metrics')),
     ], pills=True)
 ])
 
@@ -86,6 +87,17 @@ layout_forecasting = html.Div([
 ])
 
 
+def layout_metrics():
+    return html.Div([
+        layout_index,
+        html.Div(
+            Metrics(
+                team.name
+                for team in config.get('static').teams
+            ).render())
+    ])
+
+
 app.layout = url_bar_and_content_div
 
 
@@ -105,6 +117,8 @@ def display_page(pathname):
         return layout_sprints
     elif pathname == "/forecasts":
         return layout_forecasting
+    elif pathname == "/metrics":
+        return layout_metrics()
     else:
         return layout_index
 

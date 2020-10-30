@@ -1,5 +1,5 @@
 import dash_table
-from functools import partial
+from itertools import chain, repeat
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -11,6 +11,7 @@ import dash_html_components as html
 
 from models import Sprints as SprintsModel
 from models import Sprint as SprintModel
+from models import SprintsAggregate as SprintsAggregateModel
 
 
 def singleColRow(item):
@@ -283,3 +284,213 @@ class Sprint:
             dbc.Button(id='submit-notes'),
             dbc.Textarea(id='notes-content')
         ]
+
+
+def _mk_sub_pie_trace(df):
+    empty_sub_pie = go.Pie(
+        labels=[], values=[], scalegroup='one')
+    if df.empty:
+        return empty_sub_pie
+
+    pie = px.pie(
+        df.groupby(0).size().reset_index(name='issue_count'),
+        values='issue_count',
+        names=0)
+    # can only make subplots from graph objects
+    return go.Pie(
+        labels=pie.data[0]['labels'],
+        values=pie.data[0]['values'],
+        scalegroup='one')
+
+
+def _mk_sub_bar_trace(
+        df, name, x_col, y_col, color='blue', show_legend=False):
+    fig = go.Bar(
+        x=df[x_col].tolist(),
+        y=df[y_col].tolist(),
+        name=name,
+        marker={'color': color},
+        showlegend=show_legend,
+        legendgroup=name)
+    return fig
+
+
+def _mk_sub_line_trace(
+        df, name, x_col, y_col, color='blue', show_legend=False):
+    fig = go.Scatter(
+        x=df[x_col].tolist(),
+        y=df[y_col].tolist(),
+        name=name,
+        marker={'color': color},
+        showlegend=show_legend,
+        legendgroup=name)
+    return fig
+
+
+def mk_gauge_trace(df):
+    val = int(df.goal_completed.mean().round(0))
+    if val < 60:
+        color = 'red'
+    elif val < 80:
+        color = 'yellow'
+    else:
+        color = 'green'
+    fig = go.Indicator(
+        value=val,
+        number={'font': {'color': color}},
+        title={
+            'text': "Goal Completion %",
+            'font': {'size': 12}}
+    )
+    return fig
+
+
+def chunk(iterable, n):
+    for i in range(0, len(iterable), n):
+        yield iterable[i:i + n]
+
+
+class SprintsAggregate:
+    empty_sub_pie = go.Pie(labels=[], values=[], scalegroup='one')
+
+    def __init__(self, team_name):
+        self.team_name = team_name
+        self.model = SprintsAggregateModel(team_name)
+
+    def render(self):
+        children = [html.H2(f'{self.team_name}')]
+        return html.Div(children)
+
+
+class Metrics:
+    def __init__(self, team_names):
+        self.sprint_aggregates = [
+            SprintsAggregate(name)
+            for name in team_names]
+
+    def mk_bau_overview_figure(self):
+        plots = len(self.sprint_aggregates)
+        cols = 3
+        rows, rem = divmod(plots, cols)
+        rows += rem
+
+        fig = make_subplots(
+            rows=rows, cols=cols,
+            subplot_titles=[
+                agg.team_name for agg in self.sprint_aggregates],
+            specs=[
+                [{'type': 'domain'} for _ in range(cols)]
+                for _ in range(rows)])
+
+        for i, agg in enumerate(self.sprint_aggregates):
+            div, rem = divmod(i, cols)
+            fig.add_trace(
+                _mk_sub_pie_trace(agg.model.bau_breakdown_df()),
+                row=div + 1, col=rem + 1)
+
+        fig.update_layout(
+            legend_x=1,
+            legend_y=1,
+            margin=dict(t=0, b=0, r=0, l=0))
+        fig.update_traces(
+            textinfo='percent', showlegend=True)
+        fig.update_layout(transition_duration=500)
+        return fig
+
+    @staticmethod
+    def append_sprint_delivery_traces(
+            fig, sprint_aggregate, row, col, show_legend):
+        fig.add_trace(
+            _mk_sub_line_trace(
+                sprint_aggregate.model.sprint_summary_df(),
+                name='BAU %',
+                x_col='sprint_start_date',
+                y_col='% bau',
+                color='red',
+                show_legend=show_legend),
+            row=row, col=col)
+        fig.add_trace(
+            _mk_sub_line_trace(
+                sprint_aggregate.model.sprint_summary_df(),
+                name='Delivery %',
+                x_col='sprint_start_date',
+                y_col='% delivered',
+                color='green',
+                show_legend=show_legend),
+            row=row, col=col)
+        fig.add_trace(
+            _mk_sub_bar_trace(
+                sprint_aggregate.model.sprint_summary_df(),
+                name='Goal completed',
+                x_col='sprint_start_date',
+                y_col='goal_completed',
+                color='#90ee90',
+                show_legend=show_legend),
+            row=row, col=col)
+
+    def mk_delivery_summary_figure(self):
+        # FIXME: these list comprehensions are a bit evil
+        # should work to simplify
+        plot_types = 2
+        cols = 3
+        plot_indexes = list(chain.from_iterable(
+            repeat(c, plot_types)
+            for c in chunk(
+                [i for i in range(len(self.sprint_aggregates))],
+                cols)))
+        rows = len(plot_indexes)
+
+        fig = make_subplots(
+            rows=rows, cols=cols,
+            subplot_titles=list(chain.from_iterable([
+                [self.sprint_aggregates[i].team_name for i in items]
+                if i % 2 == 0
+                else [None] * cols
+                for i, items in enumerate(plot_indexes)
+            ])),
+            specs=[
+                [{} for _ in range(cols)]
+                if i % 2 == 0
+                else [{'type': 'indicator'} for _ in range(cols)]
+                for i in range(rows)
+            ],
+            row_heights=[
+                0.7 if i % 2 == 0
+                else 0.2
+                for i in range(rows)])
+
+        for i, agg_index_group in enumerate(plot_indexes):
+            even = (i % 2) == 0
+            if even:
+                showlegend = True if i == 1 else False
+                for j, agg_idx in enumerate(agg_index_group):
+                    self.append_sprint_delivery_traces(
+                        fig,
+                        self.sprint_aggregates[agg_idx],
+                        i + 1, j + 1, showlegend)
+            else:
+                for j, agg_idx in enumerate(agg_index_group):
+                    fig.add_trace(
+                        mk_gauge_trace(
+                            self.sprint_aggregates[
+                                agg_idx].model.sprint_summary_df()),
+                        row=i + 1, col=j + 1)
+
+        fig.update_layout(
+            legend_x=1,
+            legend_y=1,
+            height=600,
+            margin=dict(t=20, b=20, r=0, l=0),
+            )
+        # fig.update_traces(
+        #     textinfo='percent', showlegend=True)
+        fig.update_layout(transition_duration=500)
+        return fig
+
+    def render(self):
+        return dbc.Col([
+            singleColRow(html.H2('KPIs')),
+            singleColRow(dcc.Graph(figure=self.mk_delivery_summary_figure())),
+            singleColRow(html.H2('BAU overview')),
+            singleColRow(dcc.Graph(figure=self.mk_bau_overview_figure()))
+            ])
