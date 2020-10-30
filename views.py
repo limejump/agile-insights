@@ -461,15 +461,14 @@ class Metrics:
 
         for i, agg_index_group in enumerate(plot_indexes):
             even = (i % 2) == 0
-            if even:
-                showlegend = True if i == 1 else False
-                for j, agg_idx in enumerate(agg_index_group):
+            for j, agg_idx in enumerate(agg_index_group):
+                if even:
+                    showlegend = True if agg_idx == 1 else False
                     self.append_sprint_delivery_traces(
                         fig,
                         self.sprint_aggregates[agg_idx],
                         i + 1, j + 1, showlegend)
-            else:
-                for j, agg_idx in enumerate(agg_index_group):
+                else:
                     fig.add_trace(
                         mk_gauge_trace(
                             self.sprint_aggregates[
