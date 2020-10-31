@@ -1,4 +1,6 @@
+import functools
 import dash_table
+from functools import partial
 from itertools import chain, repeat
 import plotly.express as px
 import plotly.graph_objects as go
@@ -399,7 +401,7 @@ class Metrics:
 
     @staticmethod
     def append_sprint_delivery_traces(
-            fig, sprint_aggregate, row, col, show_legend):
+            sprint_aggregate, row, col, show_legend, fig):
         fig.add_trace(
             _mk_sub_line_trace(
                 sprint_aggregate.model.sprint_summary_df(),
@@ -429,51 +431,53 @@ class Metrics:
             row=row, col=col)
 
     def mk_delivery_summary_figure(self):
-        # FIXME: these list comprehensions are a bit evil
-        # should work to simplify
-        plot_types = 2
         cols = 3
-        plot_indexes = list(chain.from_iterable(
-            repeat(c, plot_types)
-            for c in chunk(
-                [i for i in range(len(self.sprint_aggregates))],
-                cols)))
-        rows = len(plot_indexes)
+
+        titles = []
+        specs = []
+        heights = []
+        trace_adders = []
+
+        def add_gauge_trace(
+                aggregate, row, col, fig):
+            fig.add_trace(
+                mk_gauge_trace(aggregate.model.sprint_summary_df()),
+                row, col)
+
+        for i, aggs in enumerate(
+                chunk(self.sprint_aggregates, cols), start=1):
+            # sprint details plot spec
+            titles.append([agg.team_name for agg in aggs])
+            specs.append([{}] * cols)
+            heights.append(0.7)
+
+            # goal completion plot spec
+            titles.append([None] * cols)
+            specs.append([{'type': 'indicator'}] * cols)
+            heights.append(0.3)
+
+            row_above = i + (i - 1)
+            row_below = row_above + 1
+            for col, agg in enumerate(aggs, start=1):
+                if row_above == 1 and col == 1:
+                    show_legend = True
+                else:
+                    show_legend = False
+
+                trace_adders.extend([
+                    functools.partial(
+                        self.append_sprint_delivery_traces,
+                        agg, row_above, col, show_legend),
+                    partial(add_gauge_trace, agg, row_below, col)])
 
         fig = make_subplots(
-            rows=rows, cols=cols,
-            subplot_titles=list(chain.from_iterable([
-                [self.sprint_aggregates[i].team_name for i in items]
-                if i % 2 == 0
-                else [None] * cols
-                for i, items in enumerate(plot_indexes)
-            ])),
-            specs=[
-                [{} for _ in range(cols)]
-                if i % 2 == 0
-                else [{'type': 'indicator'} for _ in range(cols)]
-                for i in range(rows)
-            ],
-            row_heights=[
-                0.7 if i % 2 == 0
-                else 0.2
-                for i in range(rows)])
+            rows=len(specs), cols=cols,
+            subplot_titles=list(chain.from_iterable(titles)),
+            specs=specs,
+            row_heights=heights)
 
-        for i, agg_index_group in enumerate(plot_indexes):
-            even = (i % 2) == 0
-            for j, agg_idx in enumerate(agg_index_group):
-                if even:
-                    showlegend = True if agg_idx == 1 else False
-                    self.append_sprint_delivery_traces(
-                        fig,
-                        self.sprint_aggregates[agg_idx],
-                        i + 1, j + 1, showlegend)
-                else:
-                    fig.add_trace(
-                        mk_gauge_trace(
-                            self.sprint_aggregates[
-                                agg_idx].model.sprint_summary_df()),
-                        row=i + 1, col=j + 1)
+        for add_trace in trace_adders:
+            add_trace(fig)
 
         fig.update_layout(
             legend_x=1,
@@ -481,8 +485,6 @@ class Metrics:
             height=600,
             margin=dict(t=20, b=20, r=0, l=0),
             )
-        # fig.update_traces(
-        #     textinfo='percent', showlegend=True)
         fig.update_layout(transition_duration=500)
         return fig
 
