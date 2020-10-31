@@ -332,7 +332,7 @@ def mk_gauge_trace(df):
     if val < 60:
         color = 'red'
     elif val < 80:
-        color = 'yellow'
+        color = 'orange'
     else:
         color = 'green'
     fig = go.Indicator(
