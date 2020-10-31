@@ -113,6 +113,29 @@ class Client:
                     '$gte': ending_after}
             }).sort([('start', -1)]))
 
+    def get_sprints_and_aux(self, team_name, ending_after):
+        db = self.client.sprints
+        team_id = db.teams.find_one({'name': team_name})['_id']
+        return list(db.sprints.aggregate([
+            {
+                "$match": {
+                    "team_id": team_id,
+                    "end": {"$gte": ending_after}
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "sprints_aux",
+                    "localField": "_id",
+                    "foreignField": "sprint_id",
+                    "as": "auxillary_data"
+                }
+            },
+            {
+                "$sort": {"start": -1}
+            }
+        ]))
+
 
 _client = None
 
