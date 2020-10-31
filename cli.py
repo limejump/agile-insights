@@ -6,7 +6,7 @@ import sys
 from backends.jira import fetch_all_completed_issues, fetch_sprints
 
 from config import config
-from database.mongo import Client
+from database.mongo import get_client
 
 
 logging.basicConfig(
@@ -35,7 +35,7 @@ def extract():
 def issues(access_token, db_host, db_port, db_username, db_password):
     config.set('jira', access_token)
     config.set('db', db_host, db_port, db_username, db_password)
-    db_client = Client()
+    db_client = get_client()
 
     for team in config.get('static').teams:
         data = fetch_all_completed_issues(team.board_id)
@@ -58,7 +58,7 @@ def sprints():
 def latest(access_token, db_host, db_port, db_username, db_password):
     config.set('jira', access_token)
     config.set('db', db_host, db_port, db_username, db_password)
-    db_client = Client()
+    db_client = get_client()
 
     for team in config.get('static').teams:
         data = fetch_sprints(team.board_id)

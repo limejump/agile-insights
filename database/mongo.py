@@ -112,3 +112,13 @@ class Client:
                 'end': {
                     '$gte': ending_after}
             }).sort([('start', -1)]))
+
+
+_client = None
+
+
+def get_client():
+    global _client
+    if not _client:
+        _client = Client()
+    return _client
