@@ -119,10 +119,14 @@ class SprintsAggregate:
     def __init__(self, team_name):
         self.db_client = get_client()
         six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
-        self.refs = [s['_id'] for s in self.db_client.get_sprints(
-            team_name, six_sprints_ago)]
+        sprints = []
+        for data in self.db_client.get_sprints_and_aux(
+                team_name, six_sprints_ago):
+            aux = data.pop("auxillary_data")
+            aux_doc = aux.pop() if aux else {}
+            sprints.append((data, aux_doc))
         self.sprints = [
-            SprintReadWrite(sprint_id) for sprint_id in self.refs]
+            SprintReadOnly(main, aux) for main, aux in sprints]
 
     def bau_breakdown_df(self):
         bau_agg_df = pd.concat(
@@ -139,4 +143,5 @@ class SprintsAggregate:
                 100 if sprint.goal_completed else 0)
             summary_df['goal_completed'] = goal_completed
             dfs.append(summary_df)
-        return pd.concat(dfs)
+        df = pd.concat(dfs)
+        return df
