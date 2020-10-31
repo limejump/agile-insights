@@ -1,2 +1,2 @@
 from .forecast import Forecast
-from .sprint import Sprint, Sprints, SprintsAggregate
+from .sprint import SprintReadWrite, Sprints, SprintsAggregate

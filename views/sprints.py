@@ -12,7 +12,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 
 from models import Sprints as SprintsModel
-from models import Sprint as SprintModel
+from models import SprintReadWrite as SprintModel
 from models import SprintsAggregate as SprintsAggregateModel
 
 

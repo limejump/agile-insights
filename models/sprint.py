@@ -5,14 +5,12 @@ import plotly.graph_objects as go
 from database.mongo import get_client
 
 
-class Sprint:
+class SprintReadOnly:
     empty_pie = go.Pie(labels=[], values=[], scalegroup='one')
 
-    def __init__(self, sprint_id):
-        self.db_client = get_client()
-        self._data = self.db_client.get_sprint(sprint_id)
-        self._auxillary_data = self.db_client.get_sprint_auxillary_data(
-            sprint_id)
+    def __init__(self, data, auxillary_data):
+        self._data = data
+        self._auxillary_data = auxillary_data
         self.issues_df = pd.DataFrame.from_records(
             self._data['issues'])
 
@@ -31,27 +29,6 @@ class Sprint:
     @property
     def notes(self):
         return self._auxillary_data.get('notes')
-
-    def update_goal_completion(self, goal_completion_val):
-        self.db_client.update_sprint_auxillary_data(
-            self._data['_id'],
-            {
-                'goal_completed': goal_completion_val,
-                'notes': self.notes
-            }
-        )
-        sprint = Sprint(self._data['_id'])
-        return sprint
-
-    def save_notes(self, notes):
-        self.db_client.update_sprint_auxillary_data(
-            self._data['_id'],
-            {
-                'goal_completed': self.goal_completed,
-                'notes': notes
-            }
-        )
-        return Sprint(self._data['_id'])
 
     def mk_issues_summary_df(self):
         df = self._summarise(self.issues_df)
@@ -97,6 +74,36 @@ class Sprint:
         return df
 
 
+class SprintReadWrite(SprintReadOnly):
+    def __init__(self, sprint_id):
+        self.db_client = get_client()
+        super().__init__(
+            self.db_client.get_sprint(sprint_id),
+            self.db_client.get_sprint_auxillary_data(sprint_id)
+        )
+
+    def update_goal_completion(self, goal_completion_val):
+        self.db_client.update_sprint_auxillary_data(
+            self._data['_id'],
+            {
+                'goal_completed': goal_completion_val,
+                'notes': self.notes
+            }
+        )
+        sprint = SprintReadWrite(self._data['_id'])
+        return sprint
+
+    def save_notes(self, notes):
+        self.db_client.update_sprint_auxillary_data(
+            self._data['_id'],
+            {
+                'goal_completed': self.goal_completed,
+                'notes': notes
+            }
+        )
+        return SprintReadWrite(self._data['_id'])
+
+
 class Sprints:
     def __init__(self, team_name):
         self.db_client = get_client()
@@ -114,7 +121,8 @@ class SprintsAggregate:
         six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
         self.refs = [s['_id'] for s in self.db_client.get_sprints(
             team_name, six_sprints_ago)]
-        self.sprints = [Sprint(sprint_id) for sprint_id in self.refs]
+        self.sprints = [
+            SprintReadWrite(sprint_id) for sprint_id in self.refs]
 
     def bau_breakdown_df(self):
         bau_agg_df = pd.concat(
