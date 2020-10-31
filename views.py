@@ -1,7 +1,7 @@
 import functools
 import dash_table
 from functools import partial
-from itertools import chain, repeat
+from itertools import chain
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
