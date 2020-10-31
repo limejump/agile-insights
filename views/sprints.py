@@ -90,7 +90,6 @@ class Sprint:
         )
         return fig
 
-
     @staticmethod
     def editable_notes(notes):
         form_children = []
