@@ -3,11 +3,21 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from os import environ
 import pandas as pd
 
 from config import config
 from models import Forecast
 from views import Sprints, Sprint, Metrics
+
+
+config.set(
+    'db',
+    environ.get('DB_HOST', 'localhost'),
+    int(environ.get('DB_PORT', 27017)),
+    environ.get('DB_USERNAME', 'root'),
+    environ.get('DB_PASSWORD', 'rootpassword'),
+    )
 
 pd.options.mode.chained_assignment = None
 
