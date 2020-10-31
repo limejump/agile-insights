@@ -399,11 +399,10 @@ class Metrics:
         return fig
 
     @staticmethod
-    def append_sprint_delivery_traces(
-            sprint_aggregate, row, col, show_legend, fig):
+    def append_sprint_delivery_traces(df, row, col, show_legend, fig):
         fig.add_trace(
             _mk_sub_line_trace(
-                sprint_aggregate.model.sprint_summary_df(),
+                df,
                 name='BAU %',
                 x_col='sprint_start_date',
                 y_col='% bau',
@@ -412,7 +411,7 @@ class Metrics:
             row=row, col=col)
         fig.add_trace(
             _mk_sub_line_trace(
-                sprint_aggregate.model.sprint_summary_df(),
+                df,
                 name='Delivery %',
                 x_col='sprint_start_date',
                 y_col='% delivered',
@@ -421,7 +420,7 @@ class Metrics:
             row=row, col=col)
         fig.add_trace(
             _mk_sub_bar_trace(
-                sprint_aggregate.model.sprint_summary_df(),
+                df,
                 name='Goal completed',
                 x_col='sprint_start_date',
                 y_col='goal_completed',
@@ -437,11 +436,8 @@ class Metrics:
         heights = []
         trace_adders = []
 
-        def add_gauge_trace(
-                aggregate, row, col, fig):
-            fig.add_trace(
-                mk_gauge_trace(aggregate.model.sprint_summary_df()),
-                row, col)
+        def add_gauge_trace(df, row, col, fig):
+            fig.add_trace(mk_gauge_trace(df), row, col)
 
         for i, aggs in enumerate(
                 chunk(self.sprint_aggregates, cols), start=1):
@@ -458,6 +454,7 @@ class Metrics:
             row_above = i + (i - 1)
             row_below = row_above + 1
             for col, agg in enumerate(aggs, start=1):
+                df = agg.model.sprint_summary_df()
                 if row_above == 1 and col == 1:
                     show_legend = True
                 else:
@@ -466,8 +463,8 @@ class Metrics:
                 trace_adders.extend([
                     functools.partial(
                         self.append_sprint_delivery_traces,
-                        agg, row_above, col, show_legend),
-                    partial(add_gauge_trace, agg, row_below, col)])
+                        df, row_above, col, show_legend),
+                    partial(add_gauge_trace, df, row_below, col)])
 
         fig = make_subplots(
             rows=len(specs), cols=cols,
