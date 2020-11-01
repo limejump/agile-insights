@@ -1,3 +1,5 @@
+import dash_html_components as html
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import pandas as pd
 import plotly.express as px
@@ -149,6 +151,11 @@ class Forecast:
 
     def render(self):
         return [
+            html.P("Input the number of remaining issues to reach your goal."),
+            dbc.Input(
+                id="issues-input", type="number",
+                min=0, step=1,
+                value=self.remaining_issues),
             dcc.Graph(
                 id='throuput',
                 figure=self.mk_throughput_line()
@@ -159,4 +166,10 @@ class Forecast:
             # dcc.Graph(
             #     id="overview",
             #     figure=self.mk_time_per_issue_scatter())
+        ]
+
+    @classmethod
+    def callback_elements(cls):
+        return [
+            dbc.Input(id='issues-input')
         ]

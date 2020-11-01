@@ -91,7 +91,8 @@ layout_forecasting = html.Div([
             dbc.Col(
                 html.Div(
                     id='forecast',
-                    className='container-fluid'),
+                    className='container-fluid',
+                    children=Forecast.callback_elements()),
                 width=9)
         ])], className='container-fluid')
     ])
@@ -186,9 +187,12 @@ def change_sprint(
 
 @app.callback(
     Output("forecast", "children"),
-    [Input(component_id="teams-dropdown", component_property="value")])
-def update_estimate_graph(team_name):
-    return Forecast(team_name).render()
+    [
+        Input(component_id="teams-dropdown", component_property="value"),
+        Input(component_id='issues-input', component_property='value')
+    ])
+def update_estimate_graph(team_name, remaining_issues):
+    return Forecast(team_name, remaining_issues).render()
 
 
 if __name__ == '__main__':
