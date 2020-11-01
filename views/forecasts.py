@@ -7,30 +7,76 @@ from models import Forecast as ForecastModel
 
 
 class Forecast:
-    def __init__(self, team_name):
+    def __init__(self, team_name, remaining_issues=None):
         self.model = ForecastModel(team_name)
+        self.remaining_issues = remaining_issues
 
     def mk_throughput_line(self):
         df = self.model.throughput_df()
-        quick, slow = self.model.uncertainty_cone_coords()
         fig = go.Figure(data=go.Scatter(
-            x=df['start'].tolist(),
+            x=df['end'].tolist(),
             y=df['throughput'].tolist(),
             name='throughput'
         ))
+        if self.remaining_issues:
+            self.add_uncertaintity_cone(df, fig)
+        return fig
+
+    def add_uncertaintity_cone(self, throughput_df, fig):
+        current_throughput = throughput_df.iloc[-1]['throughput']
+        target = current_throughput + self.remaining_issues
+        quick, slow = self.model.uncertainty_cone_coords(target)
+
         x_a, y_a, x_b, y_b = quick
         fig.add_trace(go.Scatter(
             x=[x_a, x_b],
             y=[y_a, y_b],
-            name='optimistic'
+            name='optimistic',
+            mode='lines',
+            line={
+                'color': 'green',
+                'dash': 'dash',
+                'width': 1
+            },
+            legendgroup='optimistic'
+        ))
+        fig.add_trace(go.Scatter(
+            x=[x_b, x_b],
+            y=[y_b, 0],
+            mode='lines',
+            line={
+                'color': 'green',
+                'dash': 'dash',
+                'width': 1
+            },
+            showlegend=False,
+            legendgroup='optimistic'
         ))
         x_a, y_a, x_b, y_b = slow
         fig.add_trace(go.Scatter(
             x=[x_a, x_b],
             y=[y_a, y_b],
-            name='pesimistic'
+            name='pesimistic',
+            mode='lines',
+            line={
+                'color': 'red',
+                'dash': 'dash',
+                'width': 1
+            },
+            legendgroup='optimistic'
         ))
-        return fig
+        fig.add_trace(go.Scatter(
+            x=[x_b, x_b],
+            y=[y_b, 0],
+            mode='lines',
+            line={
+                'color': 'red',
+                'dash': 'dash',
+                'width': 1
+            },
+            showlegend=False,
+            legendgroup='pesimistic'
+        ))
 
     def mk_story_point_scatter(self):
         self.model.throughput_df()
@@ -107,10 +153,10 @@ class Forecast:
                 id='throuput',
                 figure=self.mk_throughput_line()
             ),
-            dcc.Graph(
-                id="story-points",
-                figure=self.mk_story_point_scatter()),
-            dcc.Graph(
-                id="overview",
-                figure=self.mk_time_per_issue_scatter())
+            # dcc.Graph(
+            #     id="story-points",
+            #     figure=self.mk_story_point_scatter()),
+            # dcc.Graph(
+            #     id="overview",
+            #     figure=self.mk_time_per_issue_scatter())
         ]

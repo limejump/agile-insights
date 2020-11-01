@@ -1,6 +1,6 @@
 import arrow
 from datetime import datetime
-from math import floor, ceil
+from math import floor
 import pandas as pd
 import random
 
@@ -14,12 +14,12 @@ class Forecast:
         self._sprints_data = self.db_client.get_sprints(
             team_name, six_sprints_ago)
 
-        self._historic_data = self.db_client.get_historic_issues(team_name)
-        df = pd.DataFrame.from_records(self._historic_data)
-        # FIXME:
-        # 1) make the cap configurable?
-        # 2) remove top 95%
-        self.historic_df = df[df.days_taken < df.days_taken.quantile(0.95)]
+        # self._historic_data = self.db_client.get_historic_issues(team_name)
+        # df = pd.DataFrame.from_records(self._historic_data)
+        # # FIXME:
+        # # 1) make the cap configurable?
+        # # 2) remove top 95%
+        # self.historic_df = df[df.days_taken < df.days_taken.quantile(0.95)]
 
     def run_montecarlo(self, num_issues):
         records = []
@@ -45,8 +45,8 @@ class Forecast:
             df = df.append(
                 {
                     'name': sprint['name'],
-                    'start': sprint['start'],
-                    'start_ordinal': sprint['start'].toordinal(),
+                    'end': sprint['end'],
+                    'end_ordinal': sprint['end'].toordinal(),
                     'throughput': throughput
                 },
                 ignore_index=True)
@@ -57,7 +57,7 @@ class Forecast:
         return (end_y - start_y) / (end_x - start_x)
 
     def minmax_gradients(self, df):
-        origin_time = df.at[0, 'start_ordinal']
+        origin_time = df.at[0, 'end_ordinal']
         origin_throughput = df.at[0, 'throughput']
 
         grads = []
@@ -66,18 +66,17 @@ class Forecast:
                 continue
             grad = self.gradient(
                 origin_throughput, row['throughput'],
-                origin_time, row['start_ordinal']
+                origin_time, row['end_ordinal']
             )
             grads.append(grad)
         return min(grads), max(grads)
 
-    def uncertainty_cone_coords(self):
+    def uncertainty_cone_coords(self, end_y):
         df = self.throughput_df()
         min_g, max_g = self.minmax_gradients(df)
-        end_y = df.iloc[-1]['throughput']
-        start_x = df.iloc[0]['start']
+        start_x = df.iloc[0]['end']
         start_y = df.iloc[0]['throughput']
-        start_x_ord = df.iloc[0]['start_ordinal']
+        start_x_ord = df.iloc[0]['end_ordinal']
         x1 = floor(
             start_x_ord + ((end_y - start_y) / min_g))
         x2 = floor(
