@@ -85,7 +85,7 @@ def maybe_status(json_val: str) -> Optional[StatusTypes]:
     try:
         status = StatusTypes[json_val]
     except KeyError:
-        print(f"Rejected Status Val: {json_val}")
+        log.debug(f"Rejected Status Val: {json_val}")
     else:
         return status
 
