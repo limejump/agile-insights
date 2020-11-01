@@ -8,8 +8,8 @@ from os import environ
 import pandas as pd
 
 from config import config
-from models import Forecast
-from views import Sprints, Sprint, Metrics
+from views import (
+    Forecast, Metrics, Sprints, Sprint)
 
 
 config.set(
@@ -78,24 +78,24 @@ layout_sprints = html.Div(children=[
 
 
 layout_forecasting = html.Div([
-    layout_index,
-    html.Div(
-        children=[
-            html.Label([
-                'Select Team',
+    html.Div([
+        dbc.Row([dbc.Col([layout_index])]),
+        dbc.Row([dbc.Col([
+            html.Div([html.Label([
+                'Team',
                 dcc.Dropdown(
                     id="teams-dropdown",
                     options=team_data_options,
-                    value=team_data_options[0]['value'])],
-                style={'display': 'inline-block', 'width': '30%'}),
-        ]),
-    html.H2('Forecasting'),
-    html.Div(id='forecasts'),
-    dcc.Input(
-        id='num-issues',
-        type='number'),
-    html.Div(id='actual-forecast'),
-])
+                    value=team_data_options[0]['value'])
+                ], style={'width': '100%', 'font-size': '12px'})]),
+            ], width=3, className='bg-info'),
+            dbc.Col(
+                html.Div(
+                    id='forecast',
+                    className='container-fluid'),
+                width=9)
+        ])], className='container-fluid')
+    ])
 
 
 @lru_cache(maxsize=32)
@@ -189,32 +189,10 @@ def change_sprint(
 
 
 @app.callback(
-    Output("forecasts", "children"),
+    Output("forecast", "children"),
     [Input(component_id="teams-dropdown", component_property="value")])
 def update_estimate_graph(team_name):
-    forecast = Forecast(team_name)
-    return [
-        dcc.Graph(
-            id="story-points",
-            figure=forecast.mk_story_point_scatter()),
-        dcc.Graph(
-            id="overview",
-            figure=forecast.mk_time_per_issue_scatter())
-    ]
-
-
-@app.callback(
-    Output('actual-forecast', 'children'),
-    [Input("num-issues", "value"),
-     Input(component_id="teams-dropdown", component_property="value")])
-def run_simulation(num_issues, team_name):
-    forecast = Forecast(team_name)
-    if num_issues:
-        return dcc.Graph(
-            id="monte-carlo",
-            figure=forecast._run_montecarlo(num_issues))
-    else:
-        return "..."
+    return Forecast(team_name).render()
 
 
 if __name__ == '__main__':
