@@ -141,7 +141,7 @@ class IssueTypes(JiraEnum):
         lower_no_spaces = name.replace(' ', '').replace('-', '').lower()
         mapped = mappings.get(lower_no_spaces)
 
-        if 'techdebt' in lower_no_spaces:
+        if 'tech' in lower_no_spaces:
             lower_no_spaces = 'techdebt'
 
         return mapped or lower_no_spaces
