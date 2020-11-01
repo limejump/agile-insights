@@ -73,6 +73,9 @@ def _parse_changelog(history_json: dict) -> Tuple[List, List]:
 
 
 def _parse_sprint_change(sprint_field: dict) -> dict:
+    # occasionally you get None instead of '' :/
+    if sprint_field['from'] is None:
+        sprint_field['from'] = ''
     # some muppet thought that it would be a good ideas to store the
     # sprint change lists as comma separated strings.
     items_re = partial(re.findall, r'[^,\s][^\,]*[^,\s]*')
