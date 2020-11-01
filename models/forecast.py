@@ -14,12 +14,12 @@ class Forecast:
         self._sprints_data = self.db_client.get_sprints(
             team_name, six_sprints_ago)
 
-        # self._historic_data = self.db_client.get_historic_issues(team_name)
-        # df = pd.DataFrame.from_records(self._historic_data)
-        # # FIXME:
-        # # 1) make the cap configurable?
-        # # 2) remove top 95%
-        # self.historic_df = df[df.days_taken < df.days_taken.quantile(0.95)]
+        self._historic_data = self.db_client.get_historic_issues(team_name)
+        df = pd.DataFrame.from_records(self._historic_data)
+        # FIXME:
+        # 1) make the cap configurable?
+        # 2) remove top 95%
+        self.historic_df = df[df.days_taken < df.days_taken.quantile(0.95)]
 
     def run_montecarlo(self, num_issues):
         records = []
