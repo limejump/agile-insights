@@ -3,6 +3,7 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
+from functools import lru_cache
 from os import environ
 import pandas as pd
 
@@ -97,6 +98,7 @@ layout_forecasting = html.Div([
 ])
 
 
+@lru_cache(maxsize=32)
 def layout_metrics():
     return html.Div([
         layout_index,
@@ -123,6 +125,8 @@ app.validation_layout = html.Div([
     Output('page-content', 'children'),
     [Input('url', 'pathname')])
 def display_page(pathname):
+    if pathname != '/metrics':
+        layout_metrics.cache_clear()
     if pathname == "/sprints":
         return layout_sprints
     elif pathname == "/forecasts":
