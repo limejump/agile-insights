@@ -16,6 +16,7 @@ setuptools.setup(
         'dash',
         'dash-bootstrap-components',
         'dash-daq',
+        'gunicorn',
         'pandas',
         'pymongo',
         'requests'
