@@ -102,7 +102,8 @@ class Forecast:
         })
 
         fig = px.scatter(
-            self.model.historic_df, x='end_time', y="days_taken", hover_name="name",
+            self.model.historic_df, x='end_time', y="days_taken",
+            hover_name="name",
             hover_data={'end_time': False, 'days_taken': True})
         for trace in px.line(
                 quantiles_df, x='x', y='y', color='name',
