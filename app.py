@@ -11,14 +11,6 @@ from views import (
     Forecast, Metrics, Sprints, Sprint)
 
 
-config.set(
-    'db',
-    environ.get('DB_HOST', 'localhost'),
-    int(environ.get('DB_PORT', 27017)),
-    environ.get('DB_USERNAME', 'root'),
-    environ.get('DB_PASSWORD', 'rootpassword'),
-    )
-
 pd.options.mode.chained_assignment = None
 
 server = flask.Flask(__name__)
