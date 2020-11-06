@@ -15,6 +15,8 @@ from models import Sprints as SprintsModel
 from models import SprintReadWrite as SprintModel
 from models import SprintsAggregate as SprintsAggregateModel
 
+import pandas as pd
+
 
 def singleColRow(item):
     return dbc.Row([dbc.Col([item])])
@@ -71,6 +73,11 @@ class Sprint:
 
     def mk_summary_table(self):
         df = self.model.mk_issues_summary_df()
+        df = df[[
+            'planned',
+            '# issues', '# delivered', '# bau',
+            '% delivered', '% bau'
+            ]]
         fig = dash_table.DataTable(
             columns=(
                 [{'name': '', "id": 'planned'}] +
@@ -414,7 +421,7 @@ class Metrics:
                 df,
                 name='Delivery %',
                 x_col='sprint_start_date',
-                y_col='% delivered',
+                y_col='% roadmap delivered',
                 color='green',
                 show_legend=show_legend),
             row=row, col=col)

@@ -36,6 +36,8 @@ class SprintReadOnly:
         df.loc['Total'] = df.sum()
         df['% delivered'] = self.percent(df, '# delivered', '# issues')
         df['% bau'] = self.percent(df, '# bau', '# issues')
+        df['% roadmap delivered'] = self.percent(
+            df, '# roadmap delivered', '# roadmap')
         df = df.round().reset_index()
         return df
 
@@ -55,7 +57,19 @@ class SprintReadOnly:
             delivered_df['# issues'].values)
         bau_df = summary_df[summary_df.bau.eq(True)][
             ["planned", "# issues"]].groupby(['planned'], as_index=False).sum()
+
+        non_bau_df = summary_df[summary_df.bau.eq(False)][
+            ["planned", "# issues"]].groupby(['planned'], as_index=False).sum()
+        non_bau_delivered_df = summary_df[
+            summary_df.bau.eq(False) & summary_df.finished_in_sprint.eq(True)
+            ][["planned", "# issues"]].groupby(
+                ['planned'], as_index=False).sum()
+
         transformed_df['# bau'] = pd.Series(bau_df['# issues'].values)
+        transformed_df['# roadmap'] = pd.Series(
+            non_bau_df['# issues'].values)
+        transformed_df['# roadmap delivered'] = pd.Series(
+            non_bau_delivered_df['# issues'].values)
         transformed_df = transformed_df.fillna(0)
         return transformed_df
 
