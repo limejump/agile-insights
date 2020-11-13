@@ -146,7 +146,6 @@ def fetch_closed_sprint_urls(board_id) -> List[str]:
     # We rarely want to construct sprint object with full issue lists
     # for every sprint, so just fetch the urls as an optimisation
     def constructor(sprint_json: dict) -> Optional[str]:
-        print(sprint_json['name'])
         if sprint_json['state'] == 'closed':
             return sprint_json['self']
 
