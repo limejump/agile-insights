@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import partial
-from attr import dataclass
+from dataclasses import dataclass
 import requests
 from requests.auth import HTTPBasicAuth
 from typing import List, Optional
