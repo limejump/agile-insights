@@ -26,8 +26,5 @@ setuptools.setup(
             'pytest',
             'lenses'
         ],
-        'migrate': [
-            'pymongo-migrate'
-        ]
     }
 )
