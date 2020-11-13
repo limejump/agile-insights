@@ -15,8 +15,6 @@ from models import Sprints as SprintsModel
 from models import SprintReadWrite as SprintModel
 from models import SprintsAggregate as SprintsAggregateModel
 
-import pandas as pd
-
 
 def singleColRow(item):
     return dbc.Row([dbc.Col([item])])
