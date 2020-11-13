@@ -1,0 +1,6 @@
+architecture: standalone
+useStatefulSet: true
+# auth:
+#   rootPassword: rootPassword
+#   username: root
+#   database: admin
