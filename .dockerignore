@@ -1,0 +1,6 @@
+k8s
+.pytest_cache
+.vscode
+.git
+.egg_info
+**/mongodata
