@@ -55,6 +55,7 @@ def basic_scenario():
             "type": IssueTypes.task,
             "status": StatusTypes.todo,
             "story_points": 5.0,
+            "labels": set(),
             "subtasks": [],
             "status_history": [],
             "sprint_history": []
@@ -66,6 +67,7 @@ def basic_scenario():
             type_=IssueTypes.task,
             status=StatusTypes.todo,
             story_points=5.0,
+            labels=set(),
             subtasks=[],
             status_metrics=StatusMetrics(
                 started=False,
@@ -320,6 +322,7 @@ def subtask_scenario():
         type_=IssueTypes.task,
         status=StatusTypes.todo,
         story_points=5.0,
+        labels=set(),
         subtasks=[],
         status_metrics=StatusMetrics(
             started=False,
@@ -337,6 +340,7 @@ def subtask_scenario():
             type_=IssueTypes.subtask,
             status=StatusTypes.todo,
             story_points=2.0,
+            labels=set(),
             subtasks=[],
             status_metrics=StatusMetrics(
                 started=False,
@@ -353,6 +357,7 @@ def subtask_scenario():
             type_=IssueTypes.subtask,
             status=StatusTypes.todo,
             story_points=2.0,
+            labels=set(),
             subtasks=[],
             status_metrics=StatusMetrics(
                 started=False,
@@ -399,6 +404,7 @@ def subtask_scenario():
             "type": IssueTypes.task,
             "status": StatusTypes.todo,
             "story_points": 5.0,
+            "labels": set(),
             "subtasks": [
                 "https://path/to/issue/2",
                 "https://path/to/issue/3",
@@ -463,5 +469,5 @@ def test_subtasks_inherit_from_parent(
         sprint_history_lenses.final
     ).set(sprint_metrics)(final)
     assert parse_issue(raw_json, mock_subtask_fetcher) == final
-    assert final.subtasks[0].label == final.label != None
+    assert final.subtasks[0].description == final.description != None
     assert final.subtasks[0].epic == final.epic != None

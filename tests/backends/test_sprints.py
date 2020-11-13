@@ -50,6 +50,7 @@ def base_issues():
             type_=IssueTypes.story,
             status=StatusTypes.todo,
             story_points=5.0,
+            labels=set(),
             subtasks=[],
             status_metrics=StatusMetrics(
                 started=False,

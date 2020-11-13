@@ -1,6 +1,13 @@
 version: '3.7'
 services:
-  mongodb_container:
+  dashboard:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: mongodb
+
+  mongodb:
     image: mongo:latest
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -9,7 +16,7 @@ services:
       - 27017:27017
     volumes:
       - type: bind
-        source: ./mongodata
+        source: ../data/mongodata
         target: /data/db
 
 volumes:
