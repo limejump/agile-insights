@@ -12,4 +12,6 @@ WORKDIR /opt/code
 RUN pip install .
 ENV PATH=$PATH:/usr/local/lib/python3.8/site-packages/bin/
 ENV PYTHONPATH=/opt/code
+RUN groupadd dashboard && useradd -g dashboard dashboard
+USER dashboard
 ENTRYPOINT ["gunicorn", "app:server", "-b", ":8000"]
