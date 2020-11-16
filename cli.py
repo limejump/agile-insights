@@ -15,6 +15,9 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ])
 
+log = logging.getLogger(__name__)
+log.setLevel('INFO')
+
 
 @click.group()
 def cli():
@@ -38,6 +41,7 @@ def issues(access_token, db_host, db_port, db_username, db_password):
     db_client = get_client()
 
     for team in config.get('static').teams:
+        log.info(f'Extracting Issue history for {team}')
         data = fetch_all_completed_issues(team.board_id)
         db_client.add_historic_issues(
             team.name,
@@ -61,6 +65,7 @@ def latest(access_token, db_host, db_port, db_username, db_password):
     db_client = get_client()
 
     for team in config.get('static').teams:
+        log.info(f'Extracting sprint data for {team}')
         data = fetch_sprints(team.board_id)
         for sprint_data in data:
             db_client.add_sprint(team.name, sprint_data)
