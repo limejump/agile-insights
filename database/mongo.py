@@ -73,10 +73,8 @@ class Client:
         team_id = db.teams.find_one({'name': team_name})['_id']
 
         if team_id is None:
-            log.error(
-                'Team %s does not exist, check the migrations files'
-                % team_name)
-            return
+            team_id = self.add_team(team_name)
+            log.info('Added new team %s' % team_name)
 
         data['team_id'] = team_id
         try:
@@ -84,6 +82,11 @@ class Client:
         except DuplicateKeyError as e:
             assert e.details['keyValue']['_id'] == data['_id']
             log.info('Sprint with id %s already extracted' % data['_id'])
+
+    def add_team(self, team_name):
+        db = self.client.sprints
+        res = db.teams.insert_one({'name': team_name})
+        return res.inserted_id
 
     def get_sprint_auxillary_data(self, sprint_id):
         db = self.client.sprints
