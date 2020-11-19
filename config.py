@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 from typing import List
 
 
@@ -57,21 +58,35 @@ class TeamInfo:
 
 @configclass
 @dataclass
-class StaticConfig:
+class TeamsConfig:
     teams: List[TeamInfo]
 
 
-config.register('static', StaticConfig)
-config.set(
-    'static',
-    [
-        TeamInfo('cx', 130),
-        TeamInfo('dar', 145),
-        TeamInfo('voyager', 140),
-        TeamInfo('infra', 142),
-        # TODO: support kanban extraction
-        # TeamInfo('platform', 139),
-        TeamInfo('embedded', 126),
-        TeamInfo('datascience', 177),
-        TeamInfo('helios', 163)
-    ])
+def get_teams_from_file():
+    with open('./config_files/teams.json') as f:
+        content = json.load(f)
+    return [
+        TeamInfo(team['name'], team['board_id'])
+        for team in content['teams']
+    ]
+
+
+config.register('teams', TeamsConfig)
+
+
+def parse_teams_input(teams):
+    return [TeamInfo(name, board_id) for name, board_id in teams]
+
+
+def json_provider(file_path, cmd_name):
+    with open(file_path) as f:
+        content = json.load(f)
+    teams = tuple(
+        (d['name'], d['board_id']) for d in content['teams'])
+    jira_email = content['jira']['email']
+    url = content['jira']['base_url']
+    return {
+        'team': teams,
+        'jira_user_email': jira_email,
+        'jira_url': url
+    }

@@ -13,6 +13,7 @@ setuptools.setup(
     install_requires=[
         'arrow',
         'click',
+        'click-config-file',
         'dash',
         'dash-bootstrap-components',
         'dash-daq',

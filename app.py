@@ -6,10 +6,12 @@ from dash.dependencies import Input, Output, State
 import flask
 import pandas as pd
 
-from config import config
+from config import config, get_teams_from_file
 from views import (
     Forecast, Metrics, Sprints, Sprint)
 
+
+config.set('teams', get_teams_from_file())
 
 pd.options.mode.chained_assignment = None
 
@@ -23,7 +25,7 @@ app = dash.Dash(
 
 team_data_options = [
     {"label": team.name, "value": team.name}
-    for team in config.get('static').teams]
+    for team in config.get('teams').teams]
 
 url_bar_and_content_div = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -98,7 +100,7 @@ def layout_metrics():
         html.Div(
             Metrics(
                 team.name
-                for team in config.get('static').teams
+                for team in config.get('teams').teams
             ).render())
     ])
 

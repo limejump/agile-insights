@@ -12,12 +12,11 @@ from .parse import (
 from config import config, configclass
 
 
-JIRA_BASEURL = 'https://limejump.atlassian.net/rest/agile'
-
-
 @configclass
 @dataclass
 class JiraConfig:
+    base_url: str
+    email: str
     access_token: str
 
 
@@ -26,10 +25,12 @@ config.register('jira', JiraConfig)
 
 class JiraPager(ABC):
     def __init__(self, url, items_key, data_constructor):
+        jiraconfig = config.get('jira')
         self.auth = HTTPBasicAuth(
-            "grahame.gardiner@limejump.com",
-            config.get('jira').access_token)
-        self.url = url
+            jiraconfig.email,
+            jiraconfig.access_token)
+        self.base_url = jiraconfig.base_url
+        self.url = self.base_url + url
         self.items_key = items_key
         self.data_constructor = data_constructor
 
@@ -134,7 +135,6 @@ def issues_with_full_metrics(issue_json: dict) -> Optional[JiraIssue]:
 def fetch_all_completed_issues(board_id) -> List[JiraIssue]:
     pager = CheckTotalPager(
         url=(
-            JIRA_BASEURL +
             f'/1.0/board/{board_id}/issue/?expand=changelog&maxResults=50'),
         items_key='issues',
         data_constructor=issues_with_full_metrics)
@@ -150,7 +150,7 @@ def fetch_closed_sprint_urls(board_id) -> List[str]:
             return sprint_json['self']
 
     pager = CheckLastPager(
-        url=JIRA_BASEURL + (
+        url=(
             f'/1.0/board/{board_id}/sprint?maxResults=50'),
         items_key='values',
         data_constructor=constructor)
@@ -175,7 +175,7 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
 
 def fetch_sprint_issues(board_id, sprint_id):
     pager = CheckTotalPagerWithSubRequests(
-        url=JIRA_BASEURL + (
+        url=(
             f'/1.0/board/{board_id}/sprint/{sprint_id}'
             '/issue?maxResults=50&expand=changelog'),
         items_key='issues',
