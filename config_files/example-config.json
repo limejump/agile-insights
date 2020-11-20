@@ -1,0 +1,15 @@
+{
+  "teams": [
+    {"name": "cx", "board_id": 130},
+    {"name": "dar", "board_id": 145},
+    {"name": "voyager", "board_id": 140},
+    {"name": "infra", "board_id": 142},
+    {"name": "embedded", "board_id": 126},
+    {"name": "datascience", "board_id": 177},
+    {"name": "helios", "board_id": 163}
+  ],
+  "jira": {
+    "base_url": "https://limejump.atlassian.net/rest/agile",
+    "email": "grahame.gardiner@limejump.com"
+  }
+}
