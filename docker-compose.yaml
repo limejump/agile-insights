@@ -16,7 +16,7 @@ services:
       - 27017:27017
     volumes:
       - type: bind
-        source: ../data/mongodata
+        source: ../dashboard-data/mongodata
         target: /data/db
 
 volumes:
