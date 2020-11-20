@@ -6,6 +6,10 @@ services:
       - "8000:8000"
     environment:
       DB_HOST: mongodb
+    volumes:
+      - type: bind
+        source: ../dashboard-data/config_files
+        target: /opt/code/config_files
 
   mongodb:
     image: mongo:latest
@@ -21,3 +25,4 @@ services:
 
 volumes:
   mongodata:
+  config_files:
