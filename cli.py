@@ -115,6 +115,7 @@ def latest(
         team,
         jira_url, jira_user_email, access_token,
         db_host, db_port, db_username, db_password):
+    check_jira_config(team, jira_url, jira_user_email)
     config.set('jira', jira_url, jira_user_email, access_token)
     config.set('teams', parse_teams_input(team))
     config.set('db', db_host, db_port, db_username, db_password)
