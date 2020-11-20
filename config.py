@@ -63,7 +63,7 @@ class TeamsConfig:
 
 
 def get_teams_from_file():
-    with open('./config_files/teams.json') as f:
+    with open('./config_files/config.json') as f:
         content = json.load(f)
     return [
         TeamInfo(team['name'], team['board_id'])
