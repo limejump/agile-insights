@@ -7,6 +7,8 @@ dashboard:
 
 jira:
   config:
+    jira:
+      base_url: https://limejump.atlassian.net/rest/agile
     teams:
       - name: cx
         board_id: 130
@@ -20,6 +22,14 @@ jira:
         board_id: 126
       - name: helios
         board_id: 163
+  credentials:
+    existingSecret: jira-credentials
+
+dataCollection:
+  enabled: true
+  image:
+    repository: sprints-dashboard
+    tag: local
 
 mongodb:
   auth:
