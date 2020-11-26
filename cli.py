@@ -52,6 +52,7 @@ def check_jira_config(team, url, email):
 
 
 @extract.command()
+@click.argument('jira-user-email', envvar='JIRA_EMAIL')
 @click.argument('access-token', envvar='JIRA_TOKEN')
 @click.argument('db-host', envvar='DB_HOST', default='localhost')
 @click.argument('db-port', envvar='DB_PORT', type=int, default=27017)
@@ -93,6 +94,7 @@ def sprints():
 
 
 @sprints.command()
+@click.argument('jira-user-email', envvar='JIRA_EMAIL')
 @click.argument('access-token', envvar='JIRA_TOKEN')
 @click.argument('db-host', envvar='DB_HOST', default='localhost')
 @click.argument('db-port', envvar='DB_PORT', type=int, default=27017)
