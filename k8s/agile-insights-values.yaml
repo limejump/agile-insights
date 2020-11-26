@@ -1,0 +1,26 @@
+dashboard:
+  image:
+    repository: sprints-dashboard
+    tag: local
+  ingress:
+    enabled: True
+
+jira:
+  config:
+    teams:
+      - name: cx
+        board_id: 130
+      - name: dar
+        board_id: 145
+      - name: voyager
+        board_id: 140
+      - name: infra
+        board_id: 142
+      - name: embedded
+        board_id: 126
+      - name: helios
+        board_id: 163
+
+mongodb:
+  auth:
+    existingSecret: mongo
