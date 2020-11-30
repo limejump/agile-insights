@@ -1,0 +1,9 @@
+test:
+  image: docker:19.03.12
+  stage: build
+  services:
+    - docker:19.03.12-dind
+  script:
+    - docker build --target test .
+  only:
+    - branches
