@@ -83,10 +83,20 @@ def json_provider(file_path, cmd_name):
         content = json.load(f)
     teams = tuple(
         (d['name'], d['board_id']) for d in content['teams'])
-    jira_email = content['jira']['email']
-    url = content['jira']['base_url']
-    return {
-        'team': teams,
-        'jira_user_email': jira_email,
-        'jira_url': url
-    }
+    config = {'team': teams}
+    for key, lookup_path in [
+            ('jira_user_email', ('jira', 'email')),
+            ('jira_url', ('jira', 'base_url'))]:
+        val = maybe_dict_path_lookup(content, *lookup_path)
+        if val is not None:
+            config[key] = val
+    return config
+
+
+def maybe_dict_path_lookup(dictionary, *path):
+    key, *rest = path
+    val = dictionary.get(key)
+    if rest:
+        return maybe_dict_path_lookup(val, *rest)
+    else:
+        return val
