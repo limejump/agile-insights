@@ -110,7 +110,7 @@ You will need to deploy both secrets first:
 ```
 kubectl apply -f k8s/<secret-file>
 ```
-Followed by the helm chart. It's easiest to first clone the [helm chart](https://gitlab.com/agile-insights/helm-chart) locally.
+Followed by the helm chart. It's easiest to first clone the [helm chart](https://github.com/limejump/agile-insights-chart) locally.
 ```
 helm3 install agile-insights --values k8s/agile-insights-values.yaml <local-path-to-helm-chart>
 ```
