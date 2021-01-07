@@ -70,11 +70,13 @@ class Client:
 
     def add_sprint(self, team_name, data):
         db = self.client.sprints
-        team_id = db.teams.find_one({'name': team_name})['_id']
+        team = db.teams.find_one({'name': team_name})
 
-        if team_id is None:
+        if team is None:
             team_id = self.add_team(team_name)
             log.info('Added new team %s' % team_name)
+        else:
+            team_id = team['_id']
 
         data['team_id'] = team_id
         try:
