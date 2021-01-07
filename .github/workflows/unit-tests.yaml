@@ -13,6 +13,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install .'[test]'
+      - name: Set PYTHONPATH
+        run: |
+          echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+          echo $(pwd)
       - name: Run unit tests
         run: pytest tests
 
