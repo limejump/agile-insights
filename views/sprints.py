@@ -1,5 +1,6 @@
 import functools
 import dash_table
+from dash_table.Format import Format, Scheme, Symbol
 from functools import partial
 from itertools import chain
 import plotly.express as px
@@ -76,12 +77,24 @@ class Sprint:
             '# issues', '# delivered', '# bau',
             '% delivered', '% bau'
             ]]
+        cols = []
+        for i in df.columns[1:]:
+            col_spec = {
+                "name": i,
+                "id": i,
+                "type": "numeric"
+            }
+            if i.startswith('%'):
+                col_spec["format"] = Format(
+                    precision=0,
+                    scheme=Scheme.fixed,
+                    symbol=Symbol.yes,
+                    symbol_suffix='%')
+            cols.append(col_spec)
         fig = dash_table.DataTable(
-            columns=(
-                [{'name': '', "id": 'planned'}] +
-                [{'name': i, "id": i} for i in df.columns[1:]]),
+            columns=([{'name': '', "id": 'planned'}] + cols),
             data=df.to_dict('records'),
-            style_cell={'textAlign': 'left'},
+            style_cell={'textAlign': 'right'},
             style_as_list_view=True,
             style_data_conditional=[
                 {
@@ -487,6 +500,9 @@ class Metrics:
             margin=dict(t=20, b=20, r=0, l=0),
             )
         fig.update_layout(transition_duration=500)
+        for ax in fig['layout']:
+            if ax.startswith('yaxis'):
+                fig['layout'][ax]['ticksuffix'] = '%'
         return fig
 
     def render(self):
