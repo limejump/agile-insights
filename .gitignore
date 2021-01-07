@@ -1,0 +1,8 @@
+**/__pycache__/
+.git/*
+.vscode*
+*.egg-info
+datasets/
+**/mongodata/**
+**/mongodump/**
+*.ropeproject
