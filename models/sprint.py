@@ -75,8 +75,7 @@ class SprintReadOnly:
 
     @staticmethod
     def percent(df, col_a, col_b):
-        df = df[col_a] / df[col_b]
-        df = df.map('{:.0%}'.format)
+        df = (df[col_a] / df[col_b]) * 100
         return df
 
     def mk_bau_breakdown_df(self):
