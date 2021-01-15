@@ -23,12 +23,17 @@ class JiraConfig:
 config.register('jira', JiraConfig)
 
 
+def request_with_auth_check(url):
+    jira_config = config.get('jira')
+    auth = HTTPBasicAuth(jira_config.email, jira_config.access_token)
+    resp = requests.get(url, auth=auth)
+    resp.raise_for_status()
+    return resp
+
+
 class JiraPager(ABC):
     def __init__(self, url, items_key, data_constructor):
         jiraconfig = config.get('jira')
-        self.auth = HTTPBasicAuth(
-            jiraconfig.email,
-            jiraconfig.access_token)
         self.base_url = jiraconfig.base_url
         self.url = self.base_url + url
         self.items_key = items_key
@@ -36,8 +41,8 @@ class JiraPager(ABC):
 
     def fetch_batch(self, start_at):
         # FIXME: use some url constructor lib
-        return requests.get(
-            self.url + f"&startAt={start_at}", auth=self.auth).json()
+        return request_with_auth_check(
+            self.url + f"&startAt={start_at}").json()
 
     @abstractmethod
     def fetch_all(self):
@@ -73,7 +78,7 @@ class CheckTotalPagerWithSubRequests(JiraPager):
         data = []
 
         def fetcher(url):
-            return requests.get(url, auth=self.auth).json()
+            return request_with_auth_check(url).json()
 
         def extract_batch(batch_json):
             for item_json in batch_json[self.items_key]:
@@ -162,12 +167,8 @@ def fetch_sprints(board_id, past: int = 3) -> List[dict]:
     closed_sprint_urls = fetch_closed_sprint_urls(board_id)
     all_ = [
         Sprint.from_parsed_json(
-            requests.get(
-                url, auth=HTTPBasicAuth(
-                    "grahame.gardiner@limejump.com",
-                    config.get('jira').access_token)
-            ).json(), issues_fetcher=partial(
-                fetch_sprint_issues, board_id))
+            request_with_auth_check(url).json(),
+            issues_fetcher=partial(fetch_sprint_issues, board_id))
         for url in closed_sprint_urls[-past:]
     ]
     return [sprint.to_mongo() for sprint in all_]
