@@ -12,6 +12,7 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 
+from .colours import WARNING, GOOD, BAD
 from models import Sprints as SprintsModel
 from models import SprintReadWrite as SprintModel
 from models import SprintsAggregate as SprintsAggregateModel
@@ -182,7 +183,7 @@ class Sprint:
                         'column_id': 'planned',
                         'filter_query': '{planned} contains true'
                     },
-                    'backgroundColor': '#3ace3a',
+                    'backgroundColor': GOOD,
                     'color': 'white'
                 },
                 {
@@ -190,7 +191,7 @@ class Sprint:
                         'column_id': 'delivered',
                         'filter_query': '{delivered} contains true'
                     },
-                    'backgroundColor': '#3ace3a',
+                    'backgroundColor': GOOD,
                     'color': 'white'
                 },
                 {
@@ -198,7 +199,7 @@ class Sprint:
                         'column_id': 'planned',
                         'filter_query': '{planned} contains false'
                     },
-                    'backgroundColor': '#c23b22',
+                    'backgroundColor': BAD,
                     'color': 'white'
                 },
                 {
@@ -206,7 +207,7 @@ class Sprint:
                         'column_id': 'delivered',
                         'filter_query': '{delivered} contains false'
                     },
-                    'backgroundColor': '#c23b22',
+                    'backgroundColor': BAD,
                     'color': 'white'
                 },
                 {
@@ -214,7 +215,7 @@ class Sprint:
                         'column_id': 'bau',
                         'filter_query': '{bau} contains true'
                     },
-                    'backgroundColor': '#fdef3b',
+                    'backgroundColor': WARNING,
                 },
             ]
             )
@@ -422,25 +423,25 @@ class Metrics:
             _mk_sub_line_trace(
                 df,
                 name='BAU %',
-                x_col='sprint_start_date',
+                x_col='sprint_end_date',
                 y_col='% bau',
-                color='red',
+                color='orange',
                 show_legend=show_legend),
             row=row, col=col)
         fig.add_trace(
             _mk_sub_line_trace(
                 df,
                 name='Delivery %',
-                x_col='sprint_start_date',
+                x_col='sprint_end_date',
                 y_col='% roadmap delivered',
-                color='green',
+                color=GOOD,
                 show_legend=show_legend),
             row=row, col=col)
         fig.add_trace(
             _mk_sub_bar_trace(
                 df,
                 name='Goal completed',
-                x_col='sprint_start_date',
+                x_col='sprint_end_date',
                 y_col='goal_completed',
                 color='#90ee90',
                 show_legend=show_legend),
