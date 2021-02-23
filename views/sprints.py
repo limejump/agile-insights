@@ -423,7 +423,7 @@ class Metrics:
             _mk_sub_line_trace(
                 df,
                 name='BAU %',
-                x_col='sprint_start_date',
+                x_col='sprint_end_date',
                 y_col='% bau',
                 color='orange',
                 show_legend=show_legend),
@@ -432,7 +432,7 @@ class Metrics:
             _mk_sub_line_trace(
                 df,
                 name='Delivery %',
-                x_col='sprint_start_date',
+                x_col='sprint_end_date',
                 y_col='% roadmap delivered',
                 color=GOOD,
                 show_legend=show_legend),
@@ -441,7 +441,7 @@ class Metrics:
             _mk_sub_bar_trace(
                 df,
                 name='Goal completed',
-                x_col='sprint_start_date',
+                x_col='sprint_end_date',
                 y_col='goal_completed',
                 color='#90ee90',
                 show_legend=show_legend),

@@ -151,7 +151,7 @@ class SprintsAggregate:
         dfs = []
         for sprint in self.sprints:
             summary_df = sprint.mk_issues_summary_df().tail(1)
-            summary_df['sprint_start_date'] = sprint._data['start']
+            summary_df['sprint_end_date'] = sprint._data['end']
             goal_completed = (
                 100 if sprint.goal_completed else 0)
             summary_df['goal_completed'] = goal_completed
