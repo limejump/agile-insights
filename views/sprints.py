@@ -365,9 +365,19 @@ def mk_gauge_trace(df):
     return fig
 
 
-def chunk(iterable, n):
-    for i in range(0, len(iterable), n):
-        yield iterable[i:i + n]
+def chunk(iterable, chunk_size=1):
+    iterator = iter(iterable)
+
+    while True:
+        chunks = []
+        try:
+            for _ in range(chunk_size):
+                chunks.append(next(iterator))
+        except StopIteration:
+            yield chunks
+            break
+        else:
+            yield chunks
 
 
 class SprintsAggregate:
