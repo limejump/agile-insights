@@ -280,6 +280,10 @@ class JiraIssue:
     def __post_init__(self):
         self._bau = 'bau' in self.labels
         self.labels.discard('bau')
+        if self.epic is not None:
+            self._bau = (
+                self._bau or
+                self.epic.lower().startswith("bau"))
 
     @classmethod
     def from_parsed_json(
