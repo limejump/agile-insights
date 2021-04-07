@@ -150,19 +150,25 @@ def generate():
     help=(
         '(team name, board id), '
         'alternatively provide these in --config file'))
+@click.option(
+    '--num-sprints', type=int, default=3,
+    help='Number of past sprints to generate reports for.'
+)
 @click_config_file.configuration_option(
     provider=json_provider, implicit=False)
 def sprint_reports(
-        team,
+        team, num_sprints,
         db_host, db_port, db_username, db_password):
     config.set('teams', parse_teams_input(team))
     config.set('db', db_host, db_port, db_username, db_password)
     db_client = get_client()
 
     log.info('Updating all sprint reports')
-    reports = create_performance_reports(config.get('teams').teams)
+    reports = create_performance_reports(
+        config.get('teams').teams, num_sprints=num_sprints)
     db_client.update_performance_reports(reports.to_dict(orient='records'))
-    reports = create_bau_reports(config.get('teams').teams)
+    reports = create_bau_reports(
+        config.get('teams').teams, num_sprints=num_sprints)
     db_client.update_bau_reports(reports.to_dict(orient='records'))
 
 
