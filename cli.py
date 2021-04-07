@@ -5,10 +5,10 @@ import logging
 import sys
 
 from backends.jira import fetch_all_completed_issues, fetch_sprints
-
 from config import config, json_provider, parse_teams_input
 from database.mongo import get_client
 from reports.sprint_performance import create_reports as create_performance_reports
+from reports.bau_summary import create_reports as create_bau_reports
 
 
 logging.basicConfig(
@@ -131,6 +131,8 @@ def latest(
     log.info('Updating all sprint reports')
     reports = create_performance_reports(config.get('teams').teams)
     db_client.update_performance_reports(reports.to_dict(orient='records'))
+    reports = create_bau_reports(config.get('teams').teams)
+    db_client.update_bau_reports(reports.to_dict(orient='records'))
 
 
 @cli.group()
@@ -160,6 +162,8 @@ def sprint_reports(
     log.info('Updating all sprint reports')
     reports = create_performance_reports(config.get('teams').teams)
     db_client.update_performance_reports(reports.to_dict(orient='records'))
+    reports = create_bau_reports(config.get('teams').teams)
+    db_client.update_bau_reports(reports.to_dict(orient='records'))
 
 
 if __name__ == '__main__':
