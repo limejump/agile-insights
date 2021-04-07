@@ -141,6 +141,31 @@ class Client:
             }
         ]))
 
+    def update_performance_reports(self, sprint_reports):
+        db = self.client.sprints
+
+        # Generally we will just generate reports for the most recent
+        # sprint. But if people are late updateing a manual input such
+        # as goal completion, it is useful to be able to replace existing
+        # reports.
+        replacements = [
+            ReplaceOne(
+                {"_id": report['_id']}, report, upsert=True)
+            for report in sprint_reports
+        ]
+        res = db.performance_reports.bulk_write(replacements)
+
+        if res.bulk_api_result['writeErrors']:
+            log.error(res.bulk_api_result['writeErrors'])
+
+        log.debug('Updated recent sprint reports')
+
+    def get_performance_reports(self, ending_after):
+        db = self.client.sprints
+        return list(db.performance_reports.find(
+            {'end_date': {'$gte': ending_after}}
+            ).sort([('start_date', -1)]))
+
 
 _client = None
 
