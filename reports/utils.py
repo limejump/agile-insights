@@ -112,7 +112,6 @@ class SprintsAggregate:
         return pd.concat(sprint_summaries).reset_index(drop=True)
 
     def summarise_bau(self):
-        print(self.team_name)
         bau_summaries = []
         for sprint_data in self.sprints_data:
             sprint_data.pop("auxillary_data")
