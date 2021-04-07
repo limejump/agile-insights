@@ -141,6 +141,12 @@ class Client:
             }
         ]))
 
+    def update_performance_report(self, sprint_id, data):
+        db = self.client.sprints
+        db.performance_reports.update_one(
+            {'_id': sprint_id},
+            {'$set': data})
+
     def update_performance_reports(self, sprint_reports):
         db = self.client.sprints
 
