@@ -75,17 +75,17 @@ class Sprint:
         df = self.model.mk_issues_summary_df()
         df = df[[
             'planned',
-            '# issues', '# delivered', '# bau',
-            '% delivered', '% bau'
+            'issues_count', 'delivered_issues_count', 'bau_issues_count',
+            'delivered_issues_percentage', 'bau_issues_percentage'
             ]]
         cols = []
         for i in df.columns[1:]:
             col_spec = {
-                "name": i,
+                "name": self.prettify_header(i),
                 "id": i,
                 "type": "numeric"
             }
-            if i.startswith('%'):
+            if i.endswith('percentage'):
                 col_spec["format"] = Format(
                     precision=0,
                     scheme=Scheme.fixed,
@@ -108,6 +108,16 @@ class Sprint:
             ]
         )
         return fig
+
+    @staticmethod
+    def prettify_header(header_name):
+        prefix, *_, suffix = header_name.split('_')
+        if suffix == 'count':
+            return f'# {prefix}'
+        elif suffix == 'percentage':
+            return f'% {prefix}'
+        else:
+            return header_name
 
     @staticmethod
     def editable_notes(notes):
@@ -433,8 +443,8 @@ class Metrics:
             _mk_sub_line_trace(
                 df,
                 name='BAU %',
-                x_col='sprint_end_date',
-                y_col='% bau',
+                x_col='end_date',
+                y_col='bau_issues_percentage',
                 color='orange',
                 show_legend=show_legend),
             row=row, col=col)
@@ -442,8 +452,8 @@ class Metrics:
             _mk_sub_line_trace(
                 df,
                 name='Delivery %',
-                x_col='sprint_end_date',
-                y_col='% roadmap delivered',
+                x_col='end_date',
+                y_col='roadmap_delivered_issues_percentage',
                 color=GOOD,
                 show_legend=show_legend),
             row=row, col=col)
@@ -451,7 +461,7 @@ class Metrics:
             _mk_sub_bar_trace(
                 df,
                 name='Goal completed',
-                x_col='sprint_end_date',
+                x_col='end_date',
                 y_col='goal_completed',
                 color='#90ee90',
                 show_legend=show_legend),
