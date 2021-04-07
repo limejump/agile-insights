@@ -2,7 +2,7 @@ from os import environ
 from config import config
 
 from .forecast import Forecast
-from .sprint import SprintReadWrite, Sprints, SprintsAggregate
+from .sprint import SprintReadWrite, Sprints, Metrics
 
 config.set(
     'db',
