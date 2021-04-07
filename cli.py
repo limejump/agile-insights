@@ -128,6 +128,9 @@ def latest(
         for sprint_data in data:
             db_client.add_sprint(team.name, sprint_data)
 
+    log.info('Updating all sprint reports')
+    reports = create_performance_reports(config.get('teams').teams)
+    db_client.update_performance_reports(reports.to_dict(orient='records'))
 
 
 @cli.group()
