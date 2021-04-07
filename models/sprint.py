@@ -84,38 +84,6 @@ class Sprints:
         }
 
 
-class SprintsAggregate:
-    def __init__(self, team_name):
-        self.db_client = get_client()
-        six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
-        sprints = []
-        for data in self.db_client.get_sprints_and_aux(
-                team_name, six_sprints_ago):
-            aux = data.pop("auxillary_data")
-            aux_doc = aux.pop() if aux else {}
-            sprints.append((data, aux_doc))
-        self.sprints = [
-            SprintReadOnly(main, aux) for main, aux in sprints]
-
-    def bau_breakdown_df(self):
-        bau_agg_df = pd.concat(
-            sprint.mk_bau_breakdown_df() for sprint in self.sprints
-        )
-        return bau_agg_df
-
-    def sprint_summary_df(self):
-        dfs = []
-        for sprint in self.sprints:
-            summary_df = sprint.mk_issues_summary_df().tail(1)
-            summary_df['end_date'] = sprint._data['end']
-            goal_completed = (
-                100 if sprint.goal_completed else 0)
-            summary_df['goal_completed'] = goal_completed
-            dfs.append(summary_df)
-        df = pd.concat(dfs)
-        return df
-
-
 class Metrics:
     def __init__(self):
         self.db_client = get_client()

@@ -1,7 +1,5 @@
-import functools
 import dash_table
 from dash_table.Format import Format, Scheme, Symbol
-from functools import partial
 from itertools import chain
 import plotly.express as px
 import plotly.graph_objects as go
@@ -15,7 +13,7 @@ import dash_html_components as html
 from .colours import WARNING, GOOD, BAD
 from models import Sprints as SprintsModel
 from models import SprintReadWrite as SprintModel
-from models import SprintsAggregate as SprintsAggregateModel
+from models import Metrics as MetricsModel
 
 
 def singleColRow(item):
@@ -316,16 +314,17 @@ class Sprint:
         ]
 
 
-def _mk_sub_pie_trace(df):
+def _mk_sub_pie_trace(series):
     empty_sub_pie = go.Pie(
         labels=[], values=[], scalegroup='one')
-    if df.empty:
+    if series.empty:
         return empty_sub_pie
 
+    df = series.value_counts().to_frame('issue_count')
     pie = px.pie(
-        df.groupby(0).size().reset_index(name='issue_count'),
+        df,
         values='issue_count',
-        names=0)
+        names=df.index)
     # can only make subplots from graph objects
     return go.Pie(
         labels=pie.data[0]['labels'],
@@ -390,42 +389,33 @@ def chunk(iterable, chunk_size=1):
             yield chunks
 
 
-class SprintsAggregate:
-    empty_sub_pie = go.Pie(labels=[], values=[], scalegroup='one')
-
-    def __init__(self, team_name):
-        self.team_name = team_name
-        self.model = SprintsAggregateModel(team_name)
-
-    def render(self):
-        children = [html.H2(f'{self.team_name}')]
-        return html.Div(children)
-
-
 class Metrics:
     def __init__(self, team_names):
-        self.sprint_aggregates = [
-            SprintsAggregate(name)
-            for name in team_names]
+        self.model = MetricsModel()
 
     def mk_bau_overview_figure(self):
-        plots = len(self.sprint_aggregates)
+        df = self.model.sprint_bau_report_df()
+        df = df.sort_values(['team_name', 'start_date'])
+        team_names = df.team_name.unique()
+
+        plots = len(team_names)
         cols = 3
         rows, rem = divmod(plots, cols)
         rows += rem
 
         fig = make_subplots(
             rows=rows, cols=cols,
-            subplot_titles=[
-                agg.team_name for agg in self.sprint_aggregates],
+            subplot_titles=[name for name in team_names],
             specs=[
                 [{'type': 'domain'} for _ in range(cols)]
                 for _ in range(rows)])
 
-        for i, agg in enumerate(self.sprint_aggregates):
+        for i, (_, group) in enumerate(df.groupby("team_name")):
             div, rem = divmod(i, cols)
             fig.add_trace(
-                _mk_sub_pie_trace(agg.model.bau_breakdown_df()),
+                _mk_sub_pie_trace(
+                    group.bau_summary.explode("bau_summary").dropna()
+                ),
                 row=div + 1, col=rem + 1)
 
         fig.update_layout(
@@ -438,7 +428,7 @@ class Metrics:
         return fig
 
     @staticmethod
-    def append_sprint_delivery_traces(df, row, col, show_legend, fig):
+    def add_sprint_delivery_traces(df, row, col, show_legend, fig):
         fig.add_trace(
             _mk_sub_line_trace(
                 df,
@@ -467,43 +457,39 @@ class Metrics:
                 show_legend=show_legend),
             row=row, col=col)
 
+    @staticmethod
+    def add_gauge_trace(df, row, col, fig):
+        fig.add_trace(mk_gauge_trace(df), row, col)
+
+    @staticmethod
+    def _gen_titles(df, cols):
+        teams = df['team_name'].unique()
+        for i in range(0, len(teams), cols):
+            yield list(teams[i: i + 3])
+            yield [None] * cols
+
+    @staticmethod
+    def _gen_specs(df, cols):
+        teams = df['team_name'].unique()
+        for _ in range(0, len(teams), cols):
+            yield [{}] * cols
+            yield [{'type': 'indicator'}] * cols
+
+    @staticmethod
+    def _gen_heights(df, cols):
+        teams = df['team_name'].unique()
+        for _ in range(0, len(teams), cols):
+            yield 0.7
+            yield 0.3
+
     def mk_delivery_summary_figure(self):
+        df = self.model.sprint_performance_report_df()
+        df = df.sort_values(['team_name', 'start_date'])
         cols = 3
 
-        titles = []
-        specs = []
-        heights = []
-        trace_adders = []
-
-        def add_gauge_trace(df, row, col, fig):
-            fig.add_trace(mk_gauge_trace(df), row, col)
-
-        for i, aggs in enumerate(
-                chunk(self.sprint_aggregates, cols), start=1):
-            # sprint details plot spec
-            titles.append([agg.team_name for agg in aggs])
-            specs.append([{}] * cols)
-            heights.append(0.7)
-
-            # goal completion plot spec
-            titles.append([None] * cols)
-            specs.append([{'type': 'indicator'}] * cols)
-            heights.append(0.3)
-
-            row_above = i + (i - 1)
-            row_below = row_above + 1
-            for col, agg in enumerate(aggs, start=1):
-                df = agg.model.sprint_summary_df()
-                if row_above == 1 and col == 1:
-                    show_legend = True
-                else:
-                    show_legend = False
-
-                trace_adders.extend([
-                    functools.partial(
-                        self.append_sprint_delivery_traces,
-                        df, row_above, col, show_legend),
-                    partial(add_gauge_trace, df, row_below, col)])
+        titles = list(self._gen_titles(df, cols))
+        specs = list(self._gen_specs(df, cols))
+        heights = list(self._gen_heights(df, cols))
 
         fig = make_subplots(
             rows=len(specs), cols=cols,
@@ -511,8 +497,21 @@ class Metrics:
             specs=specs,
             row_heights=heights)
 
-        for add_trace in trace_adders:
-            add_trace(fig)
+        for row_base, groups_chunk in enumerate(
+               chunk(df.groupby('team_name'), cols),
+               start=1):
+            row_above = row_base + row_base - 1
+            row_below = row_above + 1
+
+            for col, (_, group_df) in enumerate(groups_chunk, start=1):
+                if row_above == 1 and col == 1:
+                    show_legend = True
+                else:
+                    show_legend = False
+
+                self.add_sprint_delivery_traces(
+                    group_df, row_above, col, show_legend, fig)
+                self.add_gauge_trace(group_df, row_below, col, fig)
 
         fig.update_layout(
             legend_x=1,
