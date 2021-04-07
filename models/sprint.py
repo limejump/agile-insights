@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from database.mongo import get_client
+from reports.utils import mk_issues_summary_df
 
 
 class SprintReadOnly:
@@ -31,52 +32,7 @@ class SprintReadOnly:
         return self._auxillary_data.get('notes')
 
     def mk_issues_summary_df(self):
-        df = self._summarise(self.issues_df)
-        df = df.set_index('planned')
-        df.loc['Total'] = df.sum()
-        df['% delivered'] = self.percent(df, '# delivered', '# issues')
-        df['% bau'] = self.percent(df, '# bau', '# issues')
-        df['% roadmap delivered'] = self.percent(
-            df, '# roadmap delivered', '# roadmap')
-        df = df.round().reset_index()
-        return df
-
-    @staticmethod
-    def _summarise(df):
-        summary_df = df.groupby(
-            ['planned', 'finished_in_sprint', 'bau']).size().reset_index(
-                name="# issues")
-        summary_df['planned'].replace({
-            True: "planned", False: "unplanned"}, inplace=True)
-        transformed_df = summary_df[["planned", "# issues"]].groupby(
-            ['planned'], as_index=False).sum()
-        delivered_df = summary_df[summary_df.finished_in_sprint.eq(True)][
-            ["planned", "# issues"]].groupby(
-                ['planned'], as_index=False).sum()
-        transformed_df['# delivered'] = pd.Series(
-            delivered_df['# issues'].values)
-        bau_df = summary_df[summary_df.bau.eq(True)][
-            ["planned", "# issues"]].groupby(['planned'], as_index=False).sum()
-
-        non_bau_df = summary_df[summary_df.bau.eq(False)][
-            ["planned", "# issues"]].groupby(['planned'], as_index=False).sum()
-        non_bau_delivered_df = summary_df[
-            summary_df.bau.eq(False) & summary_df.finished_in_sprint.eq(True)
-            ][["planned", "# issues"]].groupby(
-                ['planned'], as_index=False).sum()
-
-        transformed_df['# bau'] = pd.Series(bau_df['# issues'].values)
-        transformed_df['# roadmap'] = pd.Series(
-            non_bau_df['# issues'].values)
-        transformed_df['# roadmap delivered'] = pd.Series(
-            non_bau_delivered_df['# issues'].values)
-        transformed_df = transformed_df.fillna(0)
-        return transformed_df
-
-    @staticmethod
-    def percent(df, col_a, col_b):
-        df = (df[col_a] / df[col_b]) * 100
-        return df
+        return mk_issues_summary_df(self._data)
 
     def mk_bau_breakdown_df(self):
         bau = []
@@ -151,10 +107,24 @@ class SprintsAggregate:
         dfs = []
         for sprint in self.sprints:
             summary_df = sprint.mk_issues_summary_df().tail(1)
-            summary_df['sprint_end_date'] = sprint._data['end']
+            summary_df['end_date'] = sprint._data['end']
             goal_completed = (
                 100 if sprint.goal_completed else 0)
             summary_df['goal_completed'] = goal_completed
             dfs.append(summary_df)
         df = pd.concat(dfs)
         return df
+
+
+class Metrics:
+    def __init__(self):
+        self.db_client = get_client()
+        six_sprints_ago = arrow.utcnow().shift(weeks=-12).datetime
+        self.sprint_reports = self.db_client.get_performance_reports(
+            ending_after=six_sprints_ago)
+        self.bau_reports = self.db_client.get_bau_reports(
+            ending_after=six_sprints_ago)
+
+    def sprint_performance_report_df(self):
+        return pd.DataFrame.from_records(self.sprint_reports)
+
