@@ -166,6 +166,28 @@ class Client:
             {'end_date': {'$gte': ending_after}}
             ).sort([('start_date', -1)]))
 
+    def update_bau_reports(self, bau_reports):
+        db = self.client.sprints
+
+        # FIXME: repetition with performance
+        replacements = [
+            ReplaceOne(
+                {"_id": report['_id']}, report, upsert=True)
+            for report in bau_reports
+        ]
+        res = db.bau_reports.bulk_write(replacements)
+
+        if res.bulk_api_result['writeErrors']:
+            log.error(res.bulk_api_result['writeErrors'])
+
+        log.debug('Updated recent sprint reports')
+
+    def get_bau_reports(self, ending_after):
+        db = self.client.sprints
+        return list(db.bau_reports.find(
+            {'end_date': {'$gte': ending_after}}
+            ).sort([('start_date', -1)]))
+
 
 _client = None
 

@@ -128,3 +128,5 @@ class Metrics:
     def sprint_performance_report_df(self):
         return pd.DataFrame.from_records(self.sprint_reports)
 
+    def sprint_bau_report_df(self):
+        return pd.DataFrame.from_records(self.bau_reports)

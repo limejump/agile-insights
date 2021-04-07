@@ -75,6 +75,24 @@ def _summarise(df):
     return transformed_df
 
 
+def mk_bau_summary_df(team_name, sprint_data):
+    issues_df = pd.DataFrame.from_records(
+        sprint_data['issues'])
+    bau_summary = [
+        bau_category
+        for row in issues_df[issues_df.bau.eq(True)].bau_breakdown
+        for bau_category in row
+    ]
+    record = {
+        '_id': sprint_data['_id'],
+        'team_name': team_name,
+        'start_date': sprint_data['start'],
+        'end_date': sprint_data['end'],
+        'bau_summary': bau_summary}
+    df = pd.DataFrame.from_records([record])
+    return df
+
+
 class SprintsAggregate:
     def __init__(self, team_name, num_sprints):
         self.db = get_client()
@@ -92,3 +110,12 @@ class SprintsAggregate:
             sprint_summaries.append(
                 summarise_sprint(self.team_name, sprint_data, aux_doc))
         return pd.concat(sprint_summaries).reset_index(drop=True)
+
+    def summarise_bau(self):
+        print(self.team_name)
+        bau_summaries = []
+        for sprint_data in self.sprints_data:
+            sprint_data.pop("auxillary_data")
+            bau_summaries.append(
+                mk_bau_summary_df(self.team_name, sprint_data))
+        return pd.concat(bau_summaries)
