@@ -52,6 +52,11 @@ class SprintReadWrite(SprintReadOnly):
         )
 
     def update_goal_completion(self, goal_completion_val):
+        # FIXME: potential data-race under load.
+        # Updating two documents outside of transaction.
+        # Highly unlikely to be a problem with current usage.
+        # Symptoms: sprint and performance_reports have inconsistent
+        # goal completion values.
         self.db_client.update_sprint_auxillary_data(
             self._data['_id'],
             {
@@ -59,8 +64,16 @@ class SprintReadWrite(SprintReadOnly):
                 'notes': self.notes
             }
         )
+        self.db_client.update_performance_report(
+            self._data['_id'],
+            {'goal_completed': self.goal_completion_as_int(
+                goal_completion_val)})
         sprint = SprintReadWrite(self._data['_id'])
         return sprint
+
+    @staticmethod
+    def goal_completion_as_int(goal_completed):
+        return 100 if goal_completed else 0
 
     def save_notes(self, notes):
         self.db_client.update_sprint_auxillary_data(
