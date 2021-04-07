@@ -5,9 +5,10 @@ import logging
 import sys
 
 from backends.jira import fetch_all_completed_issues, fetch_sprints
-
 from config import config, json_provider, parse_teams_input
 from database.mongo import get_client
+from reports.sprint_performance import create_reports as create_performance_reports
+from reports.bau_summary import create_reports as create_bau_reports
 
 
 logging.basicConfig(
@@ -126,6 +127,49 @@ def latest(
         data = fetch_sprints(team.board_id)
         for sprint_data in data:
             db_client.add_sprint(team.name, sprint_data)
+
+    log.info('Updating all sprint reports')
+    reports = create_performance_reports(config.get('teams').teams)
+    db_client.update_performance_reports(reports.to_dict(orient='records'))
+    reports = create_bau_reports(config.get('teams').teams)
+    db_client.update_bau_reports(reports.to_dict(orient='records'))
+
+
+@cli.group()
+def generate():
+    pass
+
+
+@generate.command()
+@click.argument('db-host', envvar='DB_HOST', default='localhost')
+@click.argument('db-port', envvar='DB_PORT', type=int, default=27017)
+@click.argument('db-username', envvar='DB_USERNAME', default='root')
+@click.argument('db-password', envvar='DB_PASSWORD', default='rootpassword')
+@click.option(
+    '--team', type=(str, int),  multiple=True,
+    help=(
+        '(team name, board id), '
+        'alternatively provide these in --config file'))
+@click.option(
+    '--num-sprints', type=int, default=3,
+    help='Number of past sprints to generate reports for.'
+)
+@click_config_file.configuration_option(
+    provider=json_provider, implicit=False)
+def sprint_reports(
+        team, num_sprints,
+        db_host, db_port, db_username, db_password):
+    config.set('teams', parse_teams_input(team))
+    config.set('db', db_host, db_port, db_username, db_password)
+    db_client = get_client()
+
+    log.info('Updating all sprint reports')
+    reports = create_performance_reports(
+        config.get('teams').teams, num_sprints=num_sprints)
+    db_client.update_performance_reports(reports.to_dict(orient='records'))
+    reports = create_bau_reports(
+        config.get('teams').teams, num_sprints=num_sprints)
+    db_client.update_bau_reports(reports.to_dict(orient='records'))
 
 
 if __name__ == '__main__':
